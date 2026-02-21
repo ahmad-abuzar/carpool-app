@@ -75,8 +75,9 @@ class DriverHomeScreen extends ConsumerWidget {
         title: const Text('My Rides'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () => context.push('/ride-history'),
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Post a Ride',
+            onPressed: () => context.push('/post-ride'),
           ),
         ],
       ),
