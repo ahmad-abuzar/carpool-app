@@ -1,0 +1,62 @@
+// Helper method for ProfileScreen - add this inside the ProfileScreen class before the closing brace
+  String _getVerificationButtonLabel(VerificationStatus status, User user) {
+    switch (status) {
+      case VerificationStatus.none:
+        return 'Verify Now';
+      case VerificationStatus.inProgress:
+        if (!user.idVerified) return 'Continue Verification';
+        if (!user.faceVerified) return 'Continue Verification';
+        if (!user.fingerprintsVerified) return 'Continue Verification';
+        return 'Continue Verification';
+      case VerificationStatus.pending:
+        return 'Under Review';
+      case VerificationStatus.verified:
+        return 'View Verification';
+    }
+  }
+
+// Widget for ProfileScreen - add this after the ProfileScreen class
+class _VerificationStatusItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool verified;
+
+  const _VerificationStatusItem({
+    required this.icon,
+    required this.label,
+    required this.verified,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: verified ? AppColors.success : AppColors.textSecondary,
+        ),
+        const SizedBox(width: Spacing.sm),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.body(context),
+          ),
+        ),
+        Icon(
+          verified ? Icons.check_circle : Icons.cancel,
+          size: 20,
+          color: verified ? AppColors.success : AppColors.textSecondary,
+        ),
+        const SizedBox(width: Spacing.xs),
+        Text(
+          verified ? 'Verified' : 'Not verified',
+          style: TextStyle(
+            fontSize: 12,
+            color: verified ? AppColors.success : AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}

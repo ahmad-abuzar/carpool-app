@@ -1,0 +1,97 @@
+name: carpool_app
+description: "A Flutter carpooling app for college students and office employees aged 18-25"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Icons
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.3.3
+  flutter_svg: ^2.0.0
+  
+  # State Management
+  flutter_riverpod: ^2.6.1
+  
+  # Routing
+  go_router: ^14.8.1
+  
+  # Utilities
+  intl: ^0.19.0
+  shared_preferences: ^2.3.5
+  uuid: ^4.5.1
+  
+  # Animations
+  flutter_animate: ^4.5.0
+  
+  # Location & Maps
+  geolocator: ^13.0.4
+  geocoding: ^3.0.0
+  google_maps_flutter: ^2.14.0
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  
+  # Image handling
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+  
+  # Notifications (Temporarily disabled - requires desugaring)
+  # flutter_local_notifications: ^18.0.1
+  
+  # URL launcher (for phone calls, sharing)
+  url_launcher: ^6.3.1
+  
+  # In-app calling
+  agora_rtc_engine: ^6.5.3
+  permission_handler: ^11.3.1
+  audioplayers: ^6.1.0
+  vibration: ^3.1.5
+  
+  # Time utilities
+  timeago: ^3.7.0
+
+  # Firebase
+  firebase_core: ^3.11.0
+  firebase_auth: ^5.3.5
+  cloud_firestore: ^5.6.0
+
+  # Google Sign-In
+  google_sign_in: ^6.2.2
+  
+  # Image Upload & Management
+  cloudinary_public: ^0.23.1
+
+  # Biometric & Security
+  local_auth: ^2.3.0
+  
+  # App Restart
+  flutter_phoenix: ^1.1.1
+  
+  # Camera & Face Detection
+  camera: ^0.11.0+2
+  google_mlkit_face_detection: ^0.12.0
+  google_mlkit_text_recognition: ^0.14.0
+  google_generative_ai: ^0.4.7
+  http: ^1.6.0
+  flutter_dotenv: ^6.0.0
+  google_mlkit_pose_detection: ^0.13.0
+  google_mlkit_commons: ^0.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/illustrations/
+    - .env
