@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../models/ride.dart';
 import '../../../state/providers.dart';
 
 import '../../../models/user.dart';
@@ -31,6 +32,8 @@ class HomeScreen extends ConsumerWidget {
 
     final suggestedRides = rides
         .where((ride) {
+          // Only show scheduled rides to passengers
+          if (ride.status != RideStatus.scheduled) return false;
           if (currentUser?.preferFemaleOnlyRides == true && !ride.femaleOnly) {
             return false;
           }

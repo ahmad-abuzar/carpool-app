@@ -387,24 +387,28 @@ class RideService {
               .whereType<Ride>()
               .toList();
 
-          // Filter by status in memory (to avoid composite index)
-          final scheduledRides = rides
-              .where((ride) => ride.status == RideStatus.scheduled)
+          // Filter out completed/cancelled rides in memory (to avoid composite index)
+          final activeRides = rides
+              .where(
+                (ride) =>
+                    ride.status != RideStatus.completed &&
+                    ride.status != RideStatus.cancelled,
+              )
               .toList();
 
           print('✅ RideService: Successfully parsed ${rides.length} rides');
-          print('   Filtered to ${scheduledRides.length} scheduled rides');
+          print('   Filtered to ${activeRides.length} active rides');
 
-          for (final ride in scheduledRides) {
+          for (final ride in activeRides) {
             print(
-              '   🚗 ${ride.id.substring(0, 8)}: ${ride.origin.address} → ${ride.destination.address}',
+              '   🚗 ${ride.id.substring(0, 8)}: ${ride.origin.address} → ${ride.destination.address} [${ride.status.name}]',
             );
             print(
               '      Seats: ${ride.availableSeats}/${ride.totalSeats}, Price: Rs${ride.pricePerSeat}',
             );
           }
 
-          return scheduledRides;
+          return activeRides;
         });
   }
 

@@ -23,12 +23,23 @@ class DriverHomeScreen extends ConsumerWidget {
         .where((ride) => ride.driver.id == currentUser?.id)
         .toList();
 
+    // Active rides: scheduled, driverEnRoute, inProgress
     final upcomingRides = myRides
-        .where((ride) => ride.departureTime.isAfter(DateTime.now()))
+        .where(
+          (ride) =>
+              ride.status == RideStatus.scheduled ||
+              ride.status == RideStatus.driverEnRoute ||
+              ride.status == RideStatus.inProgress,
+        )
         .toList();
 
+    // Past rides: completed or cancelled
     final pastRides = myRides
-        .where((ride) => ride.departureTime.isBefore(DateTime.now()))
+        .where(
+          (ride) =>
+              ride.status == RideStatus.completed ||
+              ride.status == RideStatus.cancelled,
+        )
         .toList();
 
     final isDriver =
