@@ -266,16 +266,17 @@ class _DriverRideCardState extends State<_DriverRideCard> {
                             : () async {
                                 setState(() => _isStarting = true);
                                 try {
-                                  await RideService().updateRideStatus(
+                                  // Navigate FIRST before the stream update
+                                  // removes the ride from the list
+                                  context.push(
+                                    '/live-trip/${ride.id}',
+                                    extra: ride,
+                                  );
+                                  // Then update status (fire-and-forget)
+                                  RideService().updateRideStatus(
                                     ride.id,
                                     RideStatus.inProgress,
                                   );
-                                  if (context.mounted) {
-                                    context.push(
-                                      '/live-trip/${ride.id}',
-                                      extra: ride,
-                                    );
-                                  }
                                 } catch (e) {
                                   if (context.mounted) {
                                     setState(() => _isStarting = false);

@@ -69,14 +69,13 @@ class UpcomingTripScreen extends ConsumerWidget {
                 height: 56,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    // Update ride status to in-progress
-                    await RideService().updateRideStatus(
+                    // Navigate FIRST, then update status
+                    context.push('/live-trip/${ride.id}', extra: ride);
+                    // Fire-and-forget the status update
+                    RideService().updateRideStatus(
                       ride.id,
                       RideStatus.inProgress,
                     );
-                    if (context.mounted) {
-                      context.push('/live-trip/${ride.id}', extra: ride);
-                    }
                   },
                   icon: const Icon(Icons.play_arrow, size: 28),
                   label: const Text(
