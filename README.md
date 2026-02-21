@@ -1,4 +1,4 @@
-# 🚗 CarpoolPK — Smart Carpooling for Pakistan
+# 🚗 EzRide — Smart Carpooling Application
 
 A full-featured, production-ready carpooling application built with **Flutter** and **Firebase**, designed for college students and young professionals (18–25) in Pakistan. The app connects riders and drivers for shared commutes with AI-powered matching, real-time messaging, in-app calling, and a complete ride lifecycle.
 
