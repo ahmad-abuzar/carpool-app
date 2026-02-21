@@ -1,7 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../models/ride.dart';
 import '../../../services/ride_service.dart';
 import '../../../services/booking_service.dart';
@@ -20,9 +26,22 @@ class LiveTripScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  // Map
+  final MapController _mapController = MapController();
+  List<LatLng> _routePoints = [];
+  bool _isLoadingRoute = true;
+
+  // Location tracking
+  LatLng? _currentLocation;
+  StreamSubscription<Position>? _positionStream;
   late AnimationController _pulseController;
+
+  // Ride state
   bool _isCompleting = false;
+  DateTime _tripStartTime = DateTime.now();
+  double _distanceTravelled = 0.0;
+  LatLng? _lastPosition;
 
   @override
   void initState() {
@@ -31,12 +50,177 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+    _tripStartTime = DateTime.now();
+    _fetchRoute();
+    _startLocationTracking();
   }
 
   @override
   void dispose() {
+    _positionStream?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  /// Fetch road route from OSRM
+  Future<void> _fetchRoute() async {
+    try {
+      final origin = widget.ride.origin;
+      final destination = widget.ride.destination;
+
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/'
+        '${origin.longitude},${origin.latitude};'
+        '${destination.longitude},${destination.latitude}'
+        '?overview=full&geometries=geojson',
+      );
+
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final coordinates =
+            data['routes'][0]['geometry']['coordinates'] as List;
+
+        if (mounted) {
+          setState(() {
+            _routePoints = coordinates
+                .map((coord) => LatLng(coord[1] as double, coord[0] as double))
+                .toList();
+            _isLoadingRoute = false;
+          });
+        }
+      } else {
+        _fallbackRoute();
+      }
+    } catch (e) {
+      _fallbackRoute();
+    }
+  }
+
+  void _fallbackRoute() {
+    if (mounted) {
+      setState(() {
+        _routePoints = [
+          LatLng(widget.ride.origin.latitude, widget.ride.origin.longitude),
+          LatLng(
+            widget.ride.destination.latitude,
+            widget.ride.destination.longitude,
+          ),
+        ];
+        _isLoadingRoute = false;
+      });
+    }
+  }
+
+  /// Start GPS tracking
+  Future<void> _startLocationTracking() async {
+    // Check permissions
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _setDefaultLocation();
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _setDefaultLocation();
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _setDefaultLocation();
+      return;
+    }
+
+    // Get initial position
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _currentLocation = LatLng(position.latitude, position.longitude);
+          _lastPosition = _currentLocation;
+        });
+        _moveCameraToCurrentLocation();
+      }
+    } catch (e) {
+      _setDefaultLocation();
+    }
+
+    // Listen to location changes
+    _positionStream =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10, // Update every 10 meters
+          ),
+        ).listen((Position position) {
+          if (mounted) {
+            final newLocation = LatLng(position.latitude, position.longitude);
+
+            // Calculate distance
+            if (_lastPosition != null) {
+              final distance = const Distance().as(
+                LengthUnit.Kilometer,
+                _lastPosition!,
+                newLocation,
+              );
+              _distanceTravelled += distance;
+            }
+
+            setState(() {
+              _currentLocation = newLocation;
+              _lastPosition = newLocation;
+            });
+
+            // Update location in Firestore for passengers to see
+            final currentUser = ref.read(currentUserProvider);
+            if (currentUser?.id == widget.ride.driver.id) {
+              RideService().updateRideLocation(
+                widget.ride.id,
+                Location(
+                  address: 'Current Location',
+                  latitude: position.latitude,
+                  longitude: position.longitude,
+                ),
+              );
+            }
+          }
+        });
+  }
+
+  void _setDefaultLocation() {
+    if (mounted) {
+      setState(() {
+        _currentLocation = LatLng(
+          widget.ride.origin.latitude,
+          widget.ride.origin.longitude,
+        );
+      });
+    }
+  }
+
+  void _moveCameraToCurrentLocation() {
+    if (_currentLocation != null) {
+      try {
+        _mapController.move(_currentLocation!, 15.0);
+      } catch (_) {}
+    }
+  }
+
+  String get _elapsedTime {
+    final elapsed = DateTime.now().difference(_tripStartTime);
+    if (elapsed.inMinutes < 60) {
+      return '${elapsed.inMinutes} min';
+    }
+    return '${elapsed.inHours}h ${elapsed.inMinutes % 60}m';
   }
 
   @override
@@ -44,61 +228,176 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
     final currentUser = ref.watch(currentUserProvider);
     final isDriver = currentUser?.id == widget.ride.driver.id;
     final timeFormat = DateFormat('h:mm a');
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final originPoint = LatLng(
+      widget.ride.origin.latitude,
+      widget.ride.origin.longitude,
+    );
+    final destinationPoint = LatLng(
+      widget.ride.destination.latitude,
+      widget.ride.destination.longitude,
+    );
 
     return Scaffold(
       body: Stack(
         children: [
-          // Map placeholder with animated gradient
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, child) {
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.primaryContainer,
-                      Color.lerp(
-                        AppColors.primaryContainer,
-                        AppColors.primaryDark,
-                        _pulseController.value * 0.15,
-                      )!,
-                    ],
-                  ),
+          // ─── Real Map ───
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _currentLocation ?? originPoint,
+              initialZoom: 14.0,
+              minZoom: 5,
+              maxZoom: 18,
+            ),
+            children: [
+              // Map tiles
+              TileLayer(
+                urlTemplate: isDarkMode
+                    ? 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
+                    : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.carpool.app',
+              ),
+
+              // Route polyline
+              if (!_isLoadingRoute && _routePoints.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _routePoints,
+                      strokeWidth: 5.0,
+                      color: AppColors.primaryDark,
+                      borderStrokeWidth: 2.0,
+                      borderColor: Colors.white,
+                    ),
+                  ],
                 ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.navigation,
-                        size: 80 + (_pulseController.value * 10),
-                        color: AppColors.primaryDark.withValues(
-                          alpha: 0.6 + _pulseController.value * 0.4,
-                        ),
+
+              // Markers
+              MarkerLayer(
+                markers: [
+                  // Origin marker
+                  Marker(
+                    point: originPoint,
+                    width: 36,
+                    height: 36,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.success, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: Spacing.lg),
-                      Text(
-                        'Live Tracking',
-                        style: AppTypography.headline(
-                          context,
-                          color: AppColors.primaryDark,
-                        ),
+                      child: const Icon(
+                        Icons.circle,
+                        color: AppColors.success,
+                        size: 14,
                       ),
-                      const SizedBox(height: Spacing.sm),
-                      Text(
-                        'Trip in progress...',
-                        style: AppTypography.body(context),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            },
+
+                  // Destination marker
+                  Marker(
+                    point: destinationPoint,
+                    width: 40,
+                    height: 40,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+
+                  // ─── Live driver location marker ───
+                  if (_currentLocation != null)
+                    Marker(
+                      point: _currentLocation!,
+                      width: 52,
+                      height: 52,
+                      child: AnimatedBuilder(
+                        animation: _pulseController,
+                        builder: (context, child) {
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Pulse ring
+                              Container(
+                                width: 36 + (_pulseController.value * 16),
+                                height: 36 + (_pulseController.value * 16),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.primaryDark.withValues(
+                                    alpha:
+                                        0.25 - (_pulseController.value * 0.2),
+                                  ),
+                                ),
+                              ),
+                              // Car icon
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryDark,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primaryDark.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.directions_car,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ),
 
-          // Top bar
+          // Loading overlay
+          if (_isLoadingRoute)
+            Container(
+              color: Colors.black.withValues(alpha: 0.2),
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.primaryDark),
+              ),
+            ),
+
+          // ─── Top bar ───
           Positioned(
             top: MediaQuery.of(context).padding.top + Spacing.md,
             left: Spacing.lg,
@@ -143,14 +442,17 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.navigation,
-                        color: Colors.white,
-                        size: 18,
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                       const SizedBox(width: Spacing.sm),
                       Text(
-                        'In Progress',
+                        'LIVE',
                         style: AppTypography.body(
                           context,
                           weight: FontWeight.bold,
@@ -161,6 +463,24 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
                   ),
                 ),
                 const Spacer(),
+                // Re-center button
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.my_location),
+                    onPressed: _moveCameraToCurrentLocation,
+                  ),
+                ),
+                const SizedBox(width: Spacing.sm),
                 // SOS button
                 Container(
                   decoration: BoxDecoration(
@@ -186,10 +506,10 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
             ),
           ),
 
-          // Bottom sheet
+          // ─── Bottom sheet ───
           DraggableScrollableSheet(
-            initialChildSize: 0.38,
-            minChildSize: 0.18,
+            initialChildSize: 0.36,
+            minChildSize: 0.15,
             maxChildSize: 0.7,
             builder: (context, scrollController) {
               return Container(
@@ -284,23 +604,26 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
                     const Divider(),
                     const SizedBox(height: Spacing.md),
 
-                    // ETA & fare
+                    // Live trip stats
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        _StatChip(
+                          icon: Icons.timer_outlined,
+                          label: 'Elapsed',
+                          value: _elapsedTime,
+                        ),
+                        _StatChip(
+                          icon: Icons.straighten,
+                          label: 'Travelled',
+                          value: '${_distanceTravelled.toStringAsFixed(1)} km',
+                        ),
                         _StatChip(
                           icon: Icons.access_time,
                           label: 'ETA',
                           value: timeFormat.format(
                             widget.ride.estimatedArrivalTime,
                           ),
-                        ),
-                        _StatChip(
-                          icon: Icons.straighten,
-                          label: 'Distance',
-                          value: widget.ride.distanceKm != null
-                              ? '${widget.ride.distanceKm!.toStringAsFixed(1)} km'
-                              : '— km',
                         ),
                         _StatChip(
                           icon: Icons.payments_outlined,
