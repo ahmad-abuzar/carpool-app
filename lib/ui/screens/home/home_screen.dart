@@ -12,7 +12,7 @@ import '../../../services/firestore_service.dart';
 import '../../theme/color_palette.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
-import '../../widgets/ai_chatbot_widget.dart';
+
 import '../../widgets/ride_card.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -34,6 +34,10 @@ class HomeScreen extends ConsumerWidget {
         .where((ride) {
           // Only show scheduled rides to passengers
           if (ride.status != RideStatus.scheduled) return false;
+          // Don't show user's own rides in suggestions
+          if (currentUser != null && ride.driver.id == currentUser.id) {
+            return false;
+          }
           if (currentUser?.preferFemaleOnlyRides == true && !ride.femaleOnly) {
             return false;
           }
@@ -68,260 +72,253 @@ class HomeScreen extends ConsumerWidget {
       },
     );
 
-    return Stack(
-      children: [
-        Scaffold(
-          body: CustomScrollView(
-            slivers: [
-              // App Bar
-              SliverAppBar(
-                floating: true,
-                title: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                      child: Text(
-                        currentUser?.name[0].toUpperCase() ?? 'U',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          // App Bar
+          SliverAppBar(
+            floating: true,
+            title: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
+                  child: Text(
+                    currentUser?.name[0].toUpperCase() ?? 'U',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hello, ${currentUser?.name.split(' ').first ?? 'User'}!',
+                        style: AppTypography.body(
+                          context,
+                          weight: FontWeight.w600,
                         ),
                       ),
+                      if (currentUser?.homeAddress != null)
+                        Text(
+                          currentUser!.homeAddress!,
+                          style: AppTypography.labelSmall(context),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              // Notifications
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: unreadNotifications > 0,
+                  label: Text('$unreadNotifications'),
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+                onPressed: () {
+                  // Show notifications bottom sheet
+                  _showNotifications(context, ref);
+                },
+              ),
+            ],
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.all(Spacing.lg),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // ─── Mode Switcher ───
+                _ModeSwitcher(
+                  currentRole: currentUser?.role ?? UserRole.passenger,
+                  onModeChanged: (role) {
+                    if (currentUser != null) {
+                      final updated = currentUser.copyWith(role: role);
+                      ref.read(authProvider.notifier).updateUser(updated);
+                      // Persist to Firestore
+                      FirestoreService().updateDocument(
+                        collection: 'users',
+                        docId: currentUser.id,
+                        data: {'role': role.name},
+                      );
+                    }
+                  },
+                ),
+
+                const SizedBox(height: Spacing.lg),
+
+                // Search / Post Card (adapts to mode)
+                Card(
+                  child: InkWell(
+                    onTap: () => context.push(
+                      (currentUser?.role == UserRole.driver)
+                          ? '/post-ride'
+                          : '/ride-search',
                     ),
-                    const SizedBox(width: Spacing.md),
-                    Expanded(
+                    borderRadius: BorderRadius.circular(Spacing.radiusMd),
+                    child: Padding(
+                      padding: const EdgeInsets.all(Spacing.lg),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Row(
+                            children: [
+                              Icon(
+                                (currentUser?.role == UserRole.driver)
+                                    ? Icons.add_circle_outline
+                                    : Icons.search,
+                                size: 28,
+                              ),
+                              const SizedBox(width: Spacing.md),
+                              Text(
+                                (currentUser?.role == UserRole.driver)
+                                    ? 'Offer a Ride'
+                                    : 'Where are you going?',
+                                style: AppTypography.body(
+                                  context,
+                                  weight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: Spacing.lg),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _QuickFilterChip(
+                                  label: 'Today',
+                                  icon: Icons.today,
+                                ),
+                                const SizedBox(width: Spacing.sm),
+                                _QuickFilterChip(
+                                  label: 'Tomorrow',
+                                  icon: Icons.calendar_today,
+                                ),
+                                const SizedBox(width: Spacing.sm),
+                                if (currentUser?.gender == Gender.female)
+                                  _QuickFilterChip(
+                                    label: 'Female Only',
+                                    icon: Icons.female,
+                                    color: AppColors.femaleOnly,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: Spacing.xl),
+
+                // Next Ride Card
+                if (upcomingBookings.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Your Next Ride',
+                        style: AppTypography.headlineSmall(context),
+                      ),
+                      TextButton(
+                        onPressed: () => context.push('/ride-history'),
+                        child: const Text('View All'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Spacing.md),
+                  _NextRideCard(booking: upcomingBookings.first),
+                  const SizedBox(height: Spacing.xl),
+                ] else ...[
+                  Card(
+                    color: AppColors.primaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(Spacing.lg),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.directions_car_outlined,
+                            size: 48,
+                            color: AppColors.primaryDark,
+                          ),
+                          const SizedBox(height: Spacing.md),
                           Text(
-                            'Hello, ${currentUser?.name.split(' ').first ?? 'User'}!',
+                            'No upcoming rides',
                             style: AppTypography.body(
                               context,
                               weight: FontWeight.w600,
                             ),
                           ),
-                          if (currentUser?.homeAddress != null)
-                            Text(
-                              currentUser!.homeAddress!,
-                              style: AppTypography.labelSmall(context),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          const SizedBox(height: Spacing.xs),
+                          Text(
+                            'Search for rides below',
+                            style: AppTypography.bodySmall(context),
+                          ),
                         ],
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.xl),
+                ],
+
+                // Suggested Rides
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Suggested Rides Near You',
+                      style: AppTypography.headlineSmall(context),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/ride-search'),
+                      child: const Text('See All'),
                     ),
                   ],
                 ),
-                actions: [
-                  // Notifications
-                  IconButton(
-                    icon: Badge(
-                      isLabelVisible: unreadNotifications > 0,
-                      label: Text('$unreadNotifications'),
-                      child: const Icon(Icons.notifications_outlined),
-                    ),
-                    onPressed: () {
-                      // Show notifications bottom sheet
-                      _showNotifications(context, ref);
-                    },
-                  ),
-                ],
-              ),
 
-              SliverPadding(
-                padding: const EdgeInsets.all(Spacing.lg),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    // ─── Mode Switcher ───
-                    _ModeSwitcher(
-                      currentRole: currentUser?.role ?? UserRole.passenger,
-                      onModeChanged: (role) {
-                        if (currentUser != null) {
-                          final updated = currentUser.copyWith(role: role);
-                          ref.read(authProvider.notifier).updateUser(updated);
-                          // Persist to Firestore
-                          FirestoreService().updateDocument(
-                            collection: 'users',
-                            docId: currentUser.id,
-                            data: {'role': role.name},
-                          );
-                        }
-                      },
-                    ),
+                const SizedBox(height: Spacing.md),
 
-                    const SizedBox(height: Spacing.lg),
-
-                    // Search / Post Card (adapts to mode)
-                    Card(
-                      child: InkWell(
-                        onTap: () => context.push(
-                          (currentUser?.role == UserRole.driver)
-                              ? '/post-ride'
-                              : '/ride-search',
-                        ),
-                        borderRadius: BorderRadius.circular(Spacing.radiusMd),
-                        child: Padding(
-                          padding: const EdgeInsets.all(Spacing.lg),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    (currentUser?.role == UserRole.driver)
-                                        ? Icons.add_circle_outline
-                                        : Icons.search,
-                                    size: 28,
-                                  ),
-                                  const SizedBox(width: Spacing.md),
-                                  Text(
-                                    (currentUser?.role == UserRole.driver)
-                                        ? 'Offer a Ride'
-                                        : 'Where are you going?',
-                                    style: AppTypography.body(
-                                      context,
-                                      weight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: Spacing.lg),
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: [
-                                    _QuickFilterChip(
-                                      label: 'Today',
-                                      icon: Icons.today,
-                                    ),
-                                    const SizedBox(width: Spacing.sm),
-                                    _QuickFilterChip(
-                                      label: 'Tomorrow',
-                                      icon: Icons.calendar_today,
-                                    ),
-                                    const SizedBox(width: Spacing.sm),
-                                    if (currentUser?.gender == Gender.female)
-                                      _QuickFilterChip(
-                                        label: 'Female Only',
-                                        icon: Icons.female,
-                                        color: AppColors.femaleOnly,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: Spacing.xl),
-
-                    // Next Ride Card
-                    if (upcomingBookings.isNotEmpty) ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Rides List
+                if (suggestedRides.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(Spacing.xl),
+                      child: Column(
                         children: [
-                          Text(
-                            'Your Next Ride',
-                            style: AppTypography.headlineSmall(context),
+                          Icon(
+                            Icons.search_off,
+                            size: 64,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
-                          TextButton(
-                            onPressed: () => context.push('/ride-history'),
-                            child: const Text('View All'),
+                          const SizedBox(height: Spacing.md),
+                          Text(
+                            'No rides available',
+                            style: AppTypography.body(context),
                           ),
                         ],
                       ),
-                      const SizedBox(height: Spacing.md),
-                      _NextRideCard(booking: upcomingBookings.first),
-                      const SizedBox(height: Spacing.xl),
-                    ] else ...[
-                      Card(
-                        color: AppColors.primaryContainer,
-                        child: Padding(
-                          padding: const EdgeInsets.all(Spacing.lg),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.directions_car_outlined,
-                                size: 48,
-                                color: AppColors.primaryDark,
-                              ),
-                              const SizedBox(height: Spacing.md),
-                              Text(
-                                'No upcoming rides',
-                                style: AppTypography.body(
-                                  context,
-                                  weight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: Spacing.xs),
-                              Text(
-                                'Search for rides below',
-                                style: AppTypography.bodySmall(context),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: Spacing.xl),
-                    ],
-
-                    // Suggested Rides
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Suggested Rides Near You',
-                          style: AppTypography.headlineSmall(context),
-                        ),
-                        TextButton(
-                          onPressed: () => context.push('/ride-search'),
-                          child: const Text('See All'),
-                        ),
-                      ],
                     ),
-
-                    const SizedBox(height: Spacing.md),
-
-                    // Rides List
-                    if (suggestedRides.isEmpty)
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(Spacing.xl),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.search_off,
-                                size: 64,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: Spacing.md),
-                              Text(
-                                'No rides available',
-                                style: AppTypography.body(context),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      ...suggestedRides.map((ride) => RideCard(ride: ride)),
-                  ]),
-                ),
-              ),
-            ],
+                  )
+                else
+                  ...suggestedRides.map((ride) => RideCard(ride: ride)),
+              ]),
+            ),
           ),
-        ),
-
-        // AI Chatbot Widget - Floating assistant
-        const AIChatbotWidget(),
-      ],
+        ],
+      ),
     );
   }
 

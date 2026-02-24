@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EzRide Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="logo-icon">
+          <span class="material-icons-round">admin_panel_settings</span>
+        </div>
+        <h1>EzRide Admin</h1>
+        <p>Sign in to manage your platform</p>
+      </div>
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="input-group">
+          <span class="material-icons-round input-icon">email</span>
+          <input type="email" id="login-email" placeholder="Admin Email" required>
+        </div>
+        <div class="input-group">
+          <span class="material-icons-round input-icon">lock</span>
+          <input type="password" id="login-password" placeholder="Password" required>
+        </div>
+        <div id="login-error" class="login-error" style="display:none;"></div>
+        <button type="submit" class="btn-primary btn-full" id="login-btn">
+          <span>Sign In</span>
+          <span class="material-icons-round">arrow_forward</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app" class="app" style="display:none;">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <span class="material-icons-round">directions_car</span>
+        </div>
+        <h2>EzRide</h2>
+        <span class="badge badge-accent">Admin</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+          <span class="material-icons-round">dashboard</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-page="users" onclick="navigateTo('users')">
+          <span class="material-icons-round">people</span>
+          <span>Users</span>
+        </a>
+        <a href="#" class="nav-item" data-page="commissions" onclick="navigateTo('commissions')">
+          <span class="material-icons-round">payments</span>
+          <span>Commissions</span>
+        </a>
+        <a href="#" class="nav-item" data-page="locked" onclick="navigateTo('locked')">
+          <span class="material-icons-round">lock</span>
+          <span>Locked Profiles</span>
+          <span class="nav-badge" id="locked-count-badge" style="display:none;">0</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn-danger btn-full" onclick="handleLogout()">
+          <span class="material-icons-round">logout</span>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle" onclick="toggleSidebar()">
+            <span class="material-icons-round">menu</span>
+          </button>
+          <h1 id="page-title">Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn-icon" onclick="refreshCurrentPage()" title="Refresh">
+            <span class="material-icons-round">refresh</span>
+          </button>
+          <div class="admin-avatar">
+            <span class="material-icons-round">person</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-content">
+
+        <!-- Dashboard Page -->
+        <div id="page-dashboard" class="page active">
+          <div class="stats-grid">
+            <div class="stat-card stat-users">
+              <div class="stat-icon"><span class="material-icons-round">people</span></div>
+              <div class="stat-info">
+                <p class="stat-label">Total Users</p>
+                <h2 class="stat-value" id="stat-total-users">-</h2>
+              </div>
+            </div>
+            <div class="stat-card stat-riders">
+              <div class="stat-icon"><span class="material-icons-round">directions_car</span></div>
+              <div class="stat-info">
+                <p class="stat-label">Active Riders</p>
+                <h2 class="stat-value" id="stat-active-riders">-</h2>
+              </div>
+            </div>
+            <div class="stat-card stat-locked">
+              <div class="stat-icon"><span class="material-icons-round">lock</span></div>
+              <div class="stat-info">
+                <p class="stat-label">Locked Profiles</p>
+                <h2 class="stat-value" id="stat-locked-profiles">-</h2>
+              </div>
+            </div>
+            <div class="stat-card stat-commission">
+              <div class="stat-icon"><span class="material-icons-round">attach_money</span></div>
+              <div class="stat-info">
+                <p class="stat-label">Total Commission</p>
+                <h2 class="stat-value" id="stat-total-commission">-</h2>
+              </div>
+            </div>
+          </div>
+
+          <!-- Commission Overview -->
+          <div class="card commission-overview">
+            <h3 class="card-title">
+              <span class="material-icons-round">analytics</span>
+              Commission Overview
+            </h3>
+            <div class="commission-bars">
+              <div class="commission-bar-item">
+                <div class="bar-header">
+                  <span>Pending</span>
+                  <span class="bar-value" id="overview-pending">Rs 0</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill pending" id="bar-pending" style="width: 0%"></div>
+                </div>
+              </div>
+              <div class="commission-bar-item">
+                <div class="bar-header">
+                  <span>Collected</span>
+                  <span class="bar-value" id="overview-collected">Rs 0</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill collected" id="bar-collected" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="card">
+            <h3 class="card-title">
+              <span class="material-icons-round">history</span>
+              Recent Commissions
+            </h3>
+            <div id="recent-commissions" class="table-container">
+              <div class="loading-spinner"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users Page -->
+        <div id="page-users" class="page">
+          <div class="page-toolbar">
+            <div class="search-bar">
+              <span class="material-icons-round">search</span>
+              <input type="text" id="user-search" placeholder="Search users by name, email..." oninput="filterUsers()">
+            </div>
+            <div class="filter-chips">
+              <button class="chip active" data-filter="all" onclick="setUserFilter('all', this)">All</button>
+              <button class="chip" data-filter="locked" onclick="setUserFilter('locked', this)">Locked</button>
+              <button class="chip" data-filter="driver" onclick="setUserFilter('driver', this)">Drivers</button>
+              <button class="chip" data-filter="passenger" onclick="setUserFilter('passenger', this)">Passengers</button>
+            </div>
+          </div>
+          <div id="users-list" class="users-grid">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Commissions Page -->
+        <div id="page-commissions" class="page">
+          <div class="page-toolbar">
+            <div class="commission-tabs">
+              <button class="tab active" data-tab="all" onclick="setCommissionTab('all', this)">All</button>
+              <button class="tab" data-tab="pending" onclick="setCommissionTab('pending', this)">Pending</button>
+              <button class="tab" data-tab="paid" onclick="setCommissionTab('paid', this)">Paid</button>
+            </div>
+          </div>
+          <div class="commission-summary-bar">
+            <div class="summary-item">
+              <span class="summary-label">Total Pending</span>
+              <span class="summary-value pending" id="comm-total-pending">Rs 0</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <span class="summary-label">Total Collected</span>
+              <span class="summary-value collected" id="comm-total-collected">Rs 0</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <span class="summary-label">Records</span>
+              <span class="summary-value" id="comm-total-records">0</span>
+            </div>
+          </div>
+          <div id="commissions-list" class="table-container">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Locked Profiles Page -->
+        <div id="page-locked" class="page">
+          <div class="card info-banner warning">
+            <span class="material-icons-round">warning</span>
+            <div>
+              <strong>Locked Profiles</strong>
+              <p>These users have completed 4+ rides without paying commission and cannot post new rides.</p>
+            </div>
+          </div>
+          <div id="locked-list" class="users-grid">
+            <div class="loading-spinner"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- User Detail Modal -->
+  <div id="user-modal" class="modal" style="display:none;">
+    <div class="modal-overlay" onclick="closeUserModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-user-name">User Detail</h2>
+        <button class="btn-icon" onclick="closeUserModal()">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <div id="modal-body" class="modal-body">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" style="display:none;"></div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/ride.dart';
 import '../models/user.dart';
-
 import '../services/ride_service.dart';
 
 // Ride Service Provider

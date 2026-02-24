@@ -29,6 +29,8 @@ class _RideSearchScreenState extends ConsumerState<RideSearchScreen> {
     // Apply filters - only show scheduled rides to passengers
     final filteredRides = allRides.where((ride) {
       if (ride.status != RideStatus.scheduled) return false;
+      // Don't show user's own rides in search results
+      if (currentUser != null && ride.driver.id == currentUser.id) return false;
       if (_femaleOnlyFilter && !ride.femaleOnly) return false;
       if (ride.pricePerSeat > _maxPrice) return false;
       if (_selectedDate != null) {

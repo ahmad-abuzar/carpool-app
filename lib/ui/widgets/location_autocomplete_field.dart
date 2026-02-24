@@ -140,8 +140,16 @@ class _LocationAutocompleteFieldState extends State<LocationAutocompleteField> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    subtitle: suggestion.type.isNotEmpty
-                        ? Text(suggestion.type)
+                    subtitle: suggestion.address.isNotEmpty
+                        ? Text(
+                            suggestion.address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          )
                         : null,
                     onTap: () {
                       Navigator.pop(context);

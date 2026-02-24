@@ -71,10 +71,11 @@ class LocationSearchService {
         }
 
         return data.map((item) {
-          final String displayName = item['display_name'] ?? '';
+          final String shortName = _formatShortName(item);
+          final String fullAddress = _formatFullAddress(item);
           return LocationSuggestion(
-            displayName: displayName,
-            address: _formatAddress(item),
+            displayName: shortName,
+            address: fullAddress,
             latitude: double.parse(item['lat'] ?? '0'),
             longitude: double.parse(item['lon'] ?? '0'),
             type: item['type'] ?? '',
@@ -91,12 +92,84 @@ class LocationSearchService {
     }
   }
 
-  /// Format address from Nominatim response
-  String _formatAddress(Map<String, dynamic> item) {
+  /// Create a short, user-friendly name like "Ferozepur Road, Model Town"
+  String _formatShortName(Map<String, dynamic> item) {
+    final address = item['address'] as Map<String, dynamic>?;
+    if (address == null) {
+      // Fallback: take the first part of display_name
+      final displayName = item['display_name'] ?? '';
+      final parts = displayName.split(',');
+      if (parts.length >= 2) {
+        return '${parts[0].trim()}, ${parts[1].trim()}';
+      }
+      return displayName;
+    }
+
+    final nameParts = <String>[];
+
+    // 1. Get the specific place name (amenity, building, road, etc.)
+    final placeName =
+        address['amenity'] ??
+        address['building'] ??
+        address['shop'] ??
+        address['office'] ??
+        address['tourism'] ??
+        address['leisure'] ??
+        address['highway'] ??
+        item['name']; // Nominatim also provides 'name' at top level
+
+    if (placeName != null && placeName.toString().isNotEmpty) {
+      nameParts.add(placeName.toString());
+    }
+
+    // 2. Get the road/street
+    final road = address['road'] ?? address['street'];
+    if (road != null && road.toString().isNotEmpty && road != placeName) {
+      nameParts.add(road.toString());
+    }
+
+    // 3. Get the area (suburb, neighbourhood, quarter)
+    final area =
+        address['suburb'] ??
+        address['neighbourhood'] ??
+        address['quarter'] ??
+        address['residential'];
+    if (area != null &&
+        area.toString().isNotEmpty &&
+        !nameParts.contains(area.toString())) {
+      nameParts.add(area.toString());
+    }
+
+    // If we still have nothing, fall back to city
+    if (nameParts.isEmpty) {
+      final city = address['city'] ?? address['town'] ?? address['village'];
+      if (city != null) nameParts.add(city.toString());
+    }
+
+    if (nameParts.isEmpty) {
+      // Last resort: use first 2 parts of display_name
+      final displayName = item['display_name'] ?? '';
+      final parts = displayName.split(',');
+      if (parts.length >= 2) {
+        return '${parts[0].trim()}, ${parts[1].trim()}';
+      }
+      return displayName;
+    }
+
+    // Return at most 2-3 parts for a clean short name
+    return nameParts.take(3).join(', ');
+  }
+
+  /// Format full address from Nominatim response
+  String _formatFullAddress(Map<String, dynamic> item) {
     final address = item['address'] as Map<String, dynamic>?;
     if (address == null) return item['display_name'] ?? '';
 
     final parts = <String>[];
+
+    // Add area/suburb
+    final area = address['suburb'] ?? address['neighbourhood'];
+    if (area != null) parts.add(area.toString());
 
     // Add city/town/village
     if (address['city'] != null) {
@@ -110,11 +183,6 @@ class LocationSearchService {
     // Add state/province
     if (address['state'] != null) {
       parts.add(address['state']);
-    }
-
-    // Add country
-    if (address['country'] != null) {
-      parts.add(address['country']);
     }
 
     return parts.isEmpty ? item['display_name'] : parts.join(', ');

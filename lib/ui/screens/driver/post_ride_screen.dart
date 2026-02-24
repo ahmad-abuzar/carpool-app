@@ -6,6 +6,7 @@ import '../../../models/ride.dart';
 import '../../../models/vehicle.dart';
 import '../../../services/mock_data_service.dart';
 import '../../../services/location_search_service.dart';
+import '../../../services/commission_service.dart';
 import '../../../state/providers.dart';
 import '../../theme/color_palette.dart';
 import '../../theme/spacing.dart';
@@ -391,6 +392,29 @@ class _PostRideScreenState extends ConsumerState<PostRideScreen> {
   }
 
   Future<void> _publishRide(dynamic currentUser) async {
+    // Check if profile is locked
+    final isLocked = await CommissionService().isProfileLocked(currentUser.id);
+    if (isLocked && mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Profile Locked 🔒'),
+          content: const Text(
+            'Your profile is locked because you have completed 4 rides '
+            'without paying the 5% commission. Please contact the admin '
+            'to clear your pending commission and unlock your profile.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     // Detailed validation with specific error messages
     List<String> missingFields = [];
 

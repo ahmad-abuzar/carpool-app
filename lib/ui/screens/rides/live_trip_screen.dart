@@ -11,6 +11,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../models/ride.dart';
 import '../../../services/ride_service.dart';
 import '../../../services/booking_service.dart';
+import '../../../services/commission_service.dart';
 import '../../../state/providers.dart';
 import '../../theme/color_palette.dart';
 import '../../theme/spacing.dart';
@@ -816,8 +817,19 @@ class _LiveTripScreenState extends ConsumerState<LiveTripScreen>
 
       // 2. Complete all bookings for this ride
       final bookings = await BookingService().getBookingsByRide(widget.ride.id);
+      double totalRideEarnings = 0;
       for (final booking in bookings) {
         await BookingService().completeBooking(booking.id);
+        totalRideEarnings += booking.totalAmount;
+      }
+
+      // 3. Record commission (5% of ride earnings)
+      if (totalRideEarnings > 0) {
+        await CommissionService().recordRideEarning(
+          userId: widget.ride.driver.id,
+          rideId: widget.ride.id,
+          rideEarnings: totalRideEarnings,
+        );
       }
 
       if (mounted) {

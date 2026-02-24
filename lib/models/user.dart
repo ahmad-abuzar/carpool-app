@@ -119,6 +119,12 @@ class User {
   // User Preferences (ride matching)
   final UserPreferences? preferences;
 
+  // Commission tracking
+  final bool isProfileLocked;
+  final int completedRidesSinceLastPayment;
+  final double totalCommissionOwed;
+  final double totalCommissionPaid;
+
   const User({
     required this.id,
     required this.name,
@@ -148,6 +154,10 @@ class User {
     this.notificationsEnabled = true,
     this.locationSharingEnabled = true,
     this.preferences,
+    this.isProfileLocked = false,
+    this.completedRidesSinceLastPayment = 0,
+    this.totalCommissionOwed = 0.0,
+    this.totalCommissionPaid = 0.0,
   });
 
   User copyWith({
@@ -179,6 +189,10 @@ class User {
     bool? notificationsEnabled,
     bool? locationSharingEnabled,
     UserPreferences? preferences,
+    bool? isProfileLocked,
+    int? completedRidesSinceLastPayment,
+    double? totalCommissionOwed,
+    double? totalCommissionPaid,
   }) {
     return User(
       id: id ?? this.id,
@@ -211,6 +225,11 @@ class User {
       locationSharingEnabled:
           locationSharingEnabled ?? this.locationSharingEnabled,
       preferences: preferences ?? this.preferences,
+      isProfileLocked: isProfileLocked ?? this.isProfileLocked,
+      completedRidesSinceLastPayment:
+          completedRidesSinceLastPayment ?? this.completedRidesSinceLastPayment,
+      totalCommissionOwed: totalCommissionOwed ?? this.totalCommissionOwed,
+      totalCommissionPaid: totalCommissionPaid ?? this.totalCommissionPaid,
     );
   }
 
@@ -245,6 +264,10 @@ class User {
       'notificationsEnabled': notificationsEnabled,
       'locationSharingEnabled': locationSharingEnabled,
       'preferences': preferences?.toMap(),
+      'isProfileLocked': isProfileLocked,
+      'completedRidesSinceLastPayment': completedRidesSinceLastPayment,
+      'totalCommissionOwed': totalCommissionOwed,
+      'totalCommissionPaid': totalCommissionPaid,
     };
   }
 
@@ -296,6 +319,13 @@ class User {
       preferences: map['preferences'] != null
           ? UserPreferences.fromMap(map['preferences'] as Map<String, dynamic>)
           : null,
+      isProfileLocked: map['isProfileLocked'] as bool? ?? false,
+      completedRidesSinceLastPayment:
+          map['completedRidesSinceLastPayment'] as int? ?? 0,
+      totalCommissionOwed:
+          (map['totalCommissionOwed'] as num?)?.toDouble() ?? 0.0,
+      totalCommissionPaid:
+          (map['totalCommissionPaid'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

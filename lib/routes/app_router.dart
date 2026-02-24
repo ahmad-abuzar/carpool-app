@@ -37,6 +37,7 @@ import '../ui/widgets/main_navigation.dart';
 import '../models/ride.dart';
 import '../models/booking.dart';
 import '../state/auth_provider.dart';
+import '../ui/screens/admin/admin_login_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -64,6 +65,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.matchedLocation == '/otp' ||
           state.matchedLocation == '/onboarding';
       final isGoingToProfileSetup = state.matchedLocation == '/profile-setup';
+      final isGoingToAdmin = state.matchedLocation.startsWith('/admin');
+
+      // Admin routes bypass auth
+      if (isGoingToAdmin) return null;
 
       if (!isAuthenticated) {
         // Not logged in -> can only be on splash, onboarding, welcome, or phone auth
@@ -313,6 +318,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/ride-history',
         name: 'ride-history',
         builder: (context, state) => const RideHistoryScreen(),
+      ),
+
+      // Admin Panel
+      GoRoute(
+        path: '/admin',
+        name: 'admin',
+        builder: (context, state) => const AdminLoginScreen(),
       ),
     ],
   );
