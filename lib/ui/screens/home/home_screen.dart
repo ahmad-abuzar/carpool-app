@@ -94,6 +94,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(homeRefreshTickerProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     final currentUser = ref.watch(currentUserProvider);
     final liveLocationAsync = ref.watch(liveLocationProvider);
@@ -160,14 +161,14 @@ class HomeScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FAFC),
+      backgroundColor: colorScheme.surface,
       endDrawer: const _NotificationSidebar(),
       body: CustomScrollView(
         slivers: [
           // App Bar
           SliverAppBar(
             floating: true,
-            backgroundColor: const Color(0xFFF7FAFC),
+            backgroundColor: colorScheme.surface,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             title: Row(
@@ -304,11 +305,11 @@ class HomeScreen extends ConsumerWidget {
                 ] else ...[
                   Card(
                     elevation: 0,
-                    color: Colors.white,
+                    color: colorScheme.surface,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(Spacing.radiusMd),
                       side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant,
+                        color: colorScheme.outlineVariant,
                       ),
                     ),
                     child: Padding(
@@ -401,6 +402,7 @@ class _CurrentModeStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDriver =
         currentRole == UserRole.driver || currentRole == UserRole.both;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       width: double.infinity,
@@ -409,16 +411,16 @@ class _CurrentModeStatus extends StatelessWidget {
         vertical: Spacing.md,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(Spacing.radiusMd),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
           Icon(
             isDriver ? Icons.directions_car : Icons.person,
             size: 18,
-            color: Theme.of(context).colorScheme.primary,
+            color: colorScheme.primary,
           ),
           const SizedBox(width: Spacing.sm),
           Text(
@@ -587,13 +589,14 @@ class _NextRideCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeFormat = DateFormat('h:mm a');
     final dateFormat = DateFormat('EEE, MMM d');
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Spacing.radiusMd),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        side: BorderSide(color: colorScheme.outlineVariant),
       ),
       child: InkWell(
         onTap: () {
@@ -607,14 +610,14 @@ class _NextRideCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.schedule, color: AppColors.primaryDark),
+                  Icon(Icons.schedule, color: colorScheme.primary),
                   const SizedBox(width: Spacing.sm),
                   Text(
                     '${dateFormat.format(ride.departureTime)} • ${timeFormat.format(ride.departureTime)}',
                     style: AppTypography.body(
                       context,
                       weight: FontWeight.w600,
-                      color: AppColors.primaryDark,
+                      color: colorScheme.primary,
                     ),
                   ),
                 ],
@@ -639,7 +642,7 @@ class _NextRideCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 12,
-                    backgroundColor: AppColors.primaryDark,
+                    backgroundColor: colorScheme.primary,
                     child: Text(
                       ride.driver.name[0],
                       style: const TextStyle(
