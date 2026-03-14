@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../models/booking.dart';
 import '../../../models/ride.dart';
 import '../../../services/booking_service.dart';
+import '../../../services/call_service.dart';
 import '../../../services/ride_service.dart';
 import '../../../state/providers.dart';
+import '../call/audio_call_screen.dart';
 import '../../theme/color_palette.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
@@ -252,15 +255,22 @@ class UpcomingTripScreen extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  final name = isDriver
-                      ? (ride.passengers.isNotEmpty
-                            ? ride.passengers.first.name
-                            : 'Passenger')
-                      : ride.driver.name;
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Calling $name...')));
+                onPressed: () async {
+                  final receiver = isDriver
+                      ? (ride.passengers.isNotEmpty ? ride.passengers.first : null)
+                      : ride.driver;
+
+                  if (currentUser == null || receiver == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not start call. User not found.'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  await _initiateAudioCall(context, currentUser, receiver);
                 },
                 icon: const Icon(Icons.phone),
                 label: Text(isDriver ? 'Call Passenger' : 'Call Driver'),
@@ -272,9 +282,24 @@ class UpcomingTripScreen extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Location shared!')),
+                onPressed: () async {
+                  final receiver = isDriver
+                      ? (ride.passengers.isNotEmpty ? ride.passengers.first : null)
+                      : ride.driver;
+
+                  if (receiver == null || receiver.phone.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Receiver phone number is missing.'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  await _shareLiveLocationOnWhatsApp(
+                    context,
+                    receiver.phone,
                   );
                 },
                 icon: const Icon(Icons.share_location),
@@ -399,6 +424,131 @@ class UpcomingTripScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _initiateAudioCall(
+    BuildContext context,
+    dynamic currentUser,
+    dynamic receiver,
+  ) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final call = await CallService().initiateAgoraCall(
+        callerId: currentUser.id,
+        callerName: currentUser.name,
+        callerPhotoUrl: currentUser.profileImageUrl ?? currentUser.avatarUrl,
+        receiverId: receiver.id,
+        receiverName: receiver.name,
+        receiverPhotoUrl: receiver.profileImageUrl ?? receiver.avatarUrl,
+      );
+
+      if (!context.mounted) return;
+      Navigator.pop(context);
+
+      if (call == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to initiate call'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AudioCallScreen(call: call, isOutgoing: true),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareLiveLocationOnWhatsApp(
+    BuildContext context,
+    String phoneNumber,
+  ) async {
+    try {
+      final isServiceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!isServiceEnabled) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enable location services.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location permission is required.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      final locationLink =
+          'https://www.google.com/maps/search/?api=1&query=${position.latitude},${position.longitude}';
+      final message =
+          'Live location for my upcoming trip: $locationLink\nRoute: ${ride.origin.address} -> ${ride.destination.address}';
+
+      final opened = await CallService.openWhatsApp(
+        phoneNumber,
+        message: message,
+      );
+
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open WhatsApp.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share live location: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _cancelRideAsPassenger(

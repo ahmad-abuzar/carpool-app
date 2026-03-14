@@ -664,7 +664,7 @@ void _showProfilePictureOptions(
               );
             },
           ),
-          if (currentUser.avatarUrl != null)
+          if ((currentUser.profileImageUrl ?? currentUser.avatarUrl) != null)
             ListTile(
               leading: const Icon(Icons.delete, color: AppColors.error),
               title: const Text('Remove Photo'),

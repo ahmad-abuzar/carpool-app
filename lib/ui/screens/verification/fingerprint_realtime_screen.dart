@@ -39,6 +39,7 @@ class _FingerprintRealtimeScreenState extends State<FingerprintRealtimeScreen>
   Timer? _autoCaptureTimer;
 
   bool _isNavigating = false;
+  bool _isCaptureInProgress = false;
 
   // Animation for scanning effect
   late AnimationController _scanAnimationController;
@@ -249,8 +250,13 @@ class _FingerprintRealtimeScreenState extends State<FingerprintRealtimeScreen>
   };
 
   Future<void> _captureHand() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized)
+    if (_cameraController == null ||
+        !_cameraController!.value.isInitialized ||
+        _isCaptureInProgress) {
       return;
+    }
+
+    _isCaptureInProgress = true;
 
     setState(() {
       // _isCapturing = true; // Removed
@@ -293,7 +299,7 @@ class _FingerprintRealtimeScreenState extends State<FingerprintRealtimeScreen>
               _detectedPose = null; // Reset pose for next hand
             });
             // Restart stream for left hand
-            _cameraController?.startImageStream(_processImage);
+            await _cameraController?.startImageStream(_processImage);
           } else if (_rightHandImage != null && _leftHandImage != null) {
             _safePop({
               'rightHand': _rightHandImage,
@@ -311,6 +317,29 @@ class _FingerprintRealtimeScreenState extends State<FingerprintRealtimeScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Capture error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      _isCaptureInProgress = false;
+    }
+  }
+
+  Future<void> _captureHandManually() async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    try {
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
+      await _captureHand();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Manual capture failed: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -371,6 +400,47 @@ class _FingerprintRealtimeScreenState extends State<FingerprintRealtimeScreen>
                   left: 0,
                   right: 0,
                   child: Column(children: [_buildDistanceMeter()]),
+                ),
+
+                Positioned(
+                  bottom: 36,
+                  left: 20,
+                  right: 20,
+                  child: Column(
+                    children: [
+                      Text(
+                        _isCapturingRightHand
+                            ? 'Place RIGHT hand then tap Capture'
+                            : 'Place LEFT hand then tap Capture',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _isCaptureInProgress
+                              ? null
+                              : _captureHandManually,
+                          icon: const Icon(Icons.camera_alt),
+                          label: Text(
+                            _isCaptureInProgress
+                                ? 'Capturing...'
+                                : 'Capture Hand Now',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryDark,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             )

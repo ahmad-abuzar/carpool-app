@@ -368,6 +368,7 @@ class FirestoreService {
 
       await _firestore.collection('users').doc(userId).update({
         'avatarUrl': avatarUrl,
+        'profileImageUrl': avatarUrl,
         'avatarThumbnailUrl': thumbnailUrl,
         'avatarUpdatedAt': FieldValue.serverTimestamp(),
       });
@@ -387,6 +388,7 @@ class FirestoreService {
     try {
       await _firestore.collection('users').doc(userId).update({
         'avatarUrl': FieldValue.delete(),
+        'profileImageUrl': FieldValue.delete(),
         'avatarThumbnailUrl': FieldValue.delete(),
         'avatarUpdatedAt': FieldValue.serverTimestamp(),
       });

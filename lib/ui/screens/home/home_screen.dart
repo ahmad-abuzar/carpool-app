@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../../models/ride.dart';
 import '../../../state/providers.dart';
 
 import '../../../models/user.dart';
 import '../../../models/notification.dart';
 import '../../../models/booking.dart';
-import '../../../services/firestore_service.dart';
 import '../../../state/notification_provider.dart';
 import '../../theme/color_palette.dart';
 import '../../theme/spacing.dart';
@@ -21,6 +22,72 @@ final homeRefreshTickerProvider = StreamProvider.autoDispose<int>((ref) {
   return Stream<int>.periodic(const Duration(seconds: 30), (tick) => tick);
 });
 
+final liveLocationProvider = StreamProvider.autoDispose<String?>((ref) async* {
+  final user = ref.watch(currentUserProvider);
+
+  if (user == null) {
+    yield null;
+    return;
+  }
+
+  if (!user.locationSharingEnabled) {
+    yield user.homeAddress;
+    return;
+  }
+
+  // Emit immediately on app open, then refresh every 2 minutes.
+  yield await _resolveLiveLocation(user);
+  yield* Stream.periodic(
+    const Duration(minutes: 2),
+  ).asyncMap((_) => _resolveLiveLocation(user));
+});
+
+Future<String?> _resolveLiveLocation(User user) async {
+  try {
+    final isServiceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!isServiceEnabled) return user.homeAddress;
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return user.homeAddress;
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 10),
+      ),
+    );
+
+    final placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+
+    if (placemarks.isNotEmpty) {
+      final place = placemarks.first;
+      final parts = [
+        place.subLocality,
+        place.locality,
+        place.administrativeArea,
+      ].where((part) => part != null && part.trim().isNotEmpty).cast<String>();
+
+      if (parts.isNotEmpty) {
+        return parts.join(', ');
+      }
+    }
+
+    return '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+  } catch (_) {
+    return user.homeAddress;
+  }
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -29,6 +96,7 @@ class HomeScreen extends ConsumerWidget {
     ref.watch(homeRefreshTickerProvider);
 
     final currentUser = ref.watch(currentUserProvider);
+    final liveLocationAsync = ref.watch(liveLocationProvider);
     final rides = ref.watch(ridesProvider);
     final unreadNotifications = ref.watch(unreadNotificationCountProvider).maybeWhen(
       data: (count) => count,
@@ -92,12 +160,16 @@ class HomeScreen extends ConsumerWidget {
     );
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF7FAFC),
       endDrawer: const _NotificationSidebar(),
       body: CustomScrollView(
         slivers: [
           // App Bar
           SliverAppBar(
             floating: true,
+            backgroundColor: const Color(0xFFF7FAFC),
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
             title: Row(
               children: [
                 CircleAvatar(
@@ -105,13 +177,24 @@ class HomeScreen extends ConsumerWidget {
                   backgroundColor: Theme.of(
                     context,
                   ).colorScheme.primaryContainer,
-                  child: Text(
-                    currentUser?.name[0].toUpperCase() ?? 'U',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  backgroundImage:
+                      (currentUser?.profileImageUrl ?? currentUser?.avatarUrl) !=
+                          null
+                      ? NetworkImage(
+                          currentUser!.profileImageUrl ?? currentUser.avatarUrl!,
+                        )
+                      : null,
+                  child:
+                      (currentUser?.profileImageUrl ?? currentUser?.avatarUrl) ==
+                          null
+                      ? Text(
+                          currentUser?.name[0].toUpperCase() ?? 'U',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: Spacing.md),
                 Expanded(
@@ -122,16 +205,35 @@ class HomeScreen extends ConsumerWidget {
                         'Hello, ${currentUser?.name.split(' ').first ?? 'User'}!',
                         style: AppTypography.body(
                           context,
-                          weight: FontWeight.w600,
+                          weight: FontWeight.w700,
                         ),
                       ),
-                      if (currentUser?.homeAddress != null)
-                        Text(
-                          currentUser!.homeAddress!,
-                          style: AppTypography.labelSmall(context),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.my_location,
+                            size: 12,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              liveLocationAsync.maybeWhen(
+                                data: (value) =>
+                                    value?.trim().isNotEmpty == true
+                                    ? value!
+                                    : (currentUser?.homeAddress ?? 'Location unavailable'),
+                                loading: () => 'Fetching live location...',
+                                orElse: () =>
+                                    currentUser?.homeAddress ?? 'Location unavailable',
+                              ),
+                              style: AppTypography.labelSmall(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -170,90 +272,11 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(Spacing.lg),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // ─── Mode Switcher ───
-                _ModeSwitcher(
+                _CurrentModeStatus(
                   currentRole: currentUser?.role ?? UserRole.passenger,
-                  onModeChanged: (role) {
-                    if (currentUser != null) {
-                      final updated = currentUser.copyWith(role: role);
-                      ref.read(authProvider.notifier).updateUser(updated);
-                      // Persist to Firestore
-                      FirestoreService().updateDocument(
-                        collection: 'users',
-                        docId: currentUser.id,
-                        data: {'role': role.name},
-                      );
-                    }
-                  },
                 ),
 
                 const SizedBox(height: Spacing.lg),
-
-                // Search / Post Card (adapts to mode)
-                Card(
-                  child: InkWell(
-                    onTap: () => context.push(
-                      (currentUser?.role == UserRole.driver)
-                          ? '/post-ride'
-                          : '/ride-search',
-                    ),
-                    borderRadius: BorderRadius.circular(Spacing.radiusMd),
-                    child: Padding(
-                      padding: const EdgeInsets.all(Spacing.lg),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                (currentUser?.role == UserRole.driver)
-                                    ? Icons.add_circle_outline
-                                    : Icons.search,
-                                size: 28,
-                              ),
-                              const SizedBox(width: Spacing.md),
-                              Text(
-                                (currentUser?.role == UserRole.driver)
-                                    ? 'Offer a Ride'
-                                    : 'Where are you going?',
-                                style: AppTypography.body(
-                                  context,
-                                  weight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: Spacing.lg),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                _QuickFilterChip(
-                                  label: 'Today',
-                                  icon: Icons.today,
-                                ),
-                                const SizedBox(width: Spacing.sm),
-                                _QuickFilterChip(
-                                  label: 'Tomorrow',
-                                  icon: Icons.calendar_today,
-                                ),
-                                const SizedBox(width: Spacing.sm),
-                                if (currentUser?.gender == Gender.female)
-                                  _QuickFilterChip(
-                                    label: 'Female Only',
-                                    icon: Icons.female,
-                                    color: AppColors.femaleOnly,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: Spacing.xl),
 
                 // Next Ride Card
                 if (upcomingBookings.isNotEmpty) ...[
@@ -280,7 +303,14 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: Spacing.xl),
                 ] else ...[
                   Card(
-                    color: AppColors.primaryContainer,
+                    elevation: 0,
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(Spacing.radiusMd),
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(Spacing.lg),
                       child: Column(
@@ -360,6 +390,50 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+}
+
+class _CurrentModeStatus extends StatelessWidget {
+  final UserRole currentRole;
+
+  const _CurrentModeStatus({required this.currentRole});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDriver =
+        currentRole == UserRole.driver || currentRole == UserRole.both;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: Spacing.lg,
+        vertical: Spacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(Spacing.radiusMd),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isDriver ? Icons.directions_car : Icons.person,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: Spacing.sm),
+          Text(
+            'Current Mode: ${isDriver ? 'Driver' : 'Passenger'}',
+            style: AppTypography.body(context, weight: FontWeight.w600),
+          ),
+          const Spacer(),
+          Text(
+            'Profile > Switch',
+            style: AppTypography.labelSmall(context),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _NotificationSidebar extends ConsumerWidget {
@@ -503,221 +577,6 @@ class _NotificationSidebar extends ConsumerWidget {
 }
 
 // ─── Mode Switcher Widget ───
-class _ModeSwitcher extends StatelessWidget {
-  final UserRole currentRole;
-  final ValueChanged<UserRole> onModeChanged;
-
-  const _ModeSwitcher({required this.currentRole, required this.onModeChanged});
-
-  bool get _isDriver =>
-      currentRole == UserRole.driver || currentRole == UserRole.both;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _isDriver
-              ? [const Color(0xFF1B5E20), const Color(0xFF2E7D32)]
-              : [const Color(0xFF0D47A1), const Color(0xFF1565C0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(Spacing.radiusMd),
-        boxShadow: [
-          BoxShadow(
-            color:
-                (_isDriver ? const Color(0xFF2E7D32) : const Color(0xFF1565C0))
-                    .withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(Spacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row
-            Row(
-              children: [
-                Icon(
-                  _isDriver ? Icons.directions_car : Icons.person,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: Spacing.sm),
-                Text(
-                  _isDriver ? 'Driver Mode' : 'Passenger Mode',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    _isDriver ? 'ACTIVE' : 'ACTIVE',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: Spacing.md),
-
-            // Toggle buttons
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  // Passenger button
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => onModeChanged(UserRole.passenger),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: !_isDriver ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: !_isDriver
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.hail,
-                              size: 18,
-                              color: !_isDriver
-                                  ? const Color(0xFF0D47A1)
-                                  : Colors.white70,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Passenger',
-                              style: TextStyle(
-                                color: !_isDriver
-                                    ? const Color(0xFF0D47A1)
-                                    : Colors.white70,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 4),
-
-                  // Driver button
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => onModeChanged(UserRole.driver),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: _isDriver ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: _isDriver
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.directions_car,
-                              size: 18,
-                              color: _isDriver
-                                  ? const Color(0xFF1B5E20)
-                                  : Colors.white70,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Driver',
-                              style: TextStyle(
-                                color: _isDriver
-                                    ? const Color(0xFF1B5E20)
-                                    : Colors.white70,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickFilterChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color? color;
-
-  const _QuickFilterChip({required this.label, required this.icon, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      avatar: Icon(icon, size: 16, color: color),
-      label: Text(label),
-      labelStyle: TextStyle(color: color),
-      onPressed: () {
-        // Apply filter and navigate to search
-        context.push('/ride-search');
-      },
-    );
-  }
-}
-
 class _NextRideCard extends StatelessWidget {
   final Booking booking;
   final Ride ride;
@@ -730,7 +589,12 @@ class _NextRideCard extends StatelessWidget {
     final dateFormat = DateFormat('EEE, MMM d');
 
     return Card(
-      color: AppColors.primaryContainer,
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Spacing.radiusMd),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
       child: InkWell(
         onTap: () {
           context.push('/upcoming-trip/${ride.id}', extra: ride);

@@ -163,7 +163,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         avatarUrl: avatarUrl,
       );
 
-      final updatedUser = state.user!.copyWith(avatarUrl: avatarUrl);
+      final updatedUser = state.user!.copyWith(
+        avatarUrl: avatarUrl,
+        profileImageUrl: avatarUrl,
+      );
       state = state.copyWith(user: updatedUser);
       MockDataService.currentUser = updatedUser;
 
@@ -187,7 +190,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       await _firestoreService.removeUserAvatar(userId: state.user!.id);
 
-      final updatedUser = state.user!.copyWith(avatarUrl: null);
+      final updatedUser = state.user!.copyWith(
+        avatarUrl: null,
+        profileImageUrl: null,
+      );
       state = state.copyWith(user: updatedUser);
       MockDataService.currentUser = updatedUser;
 
