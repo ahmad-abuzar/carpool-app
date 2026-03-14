@@ -15,7 +15,9 @@ class NotificationService {
       await docRef.set(notification.toMap());
       return notification.id;
     } catch (e) {
-      print('❌ NotificationService: Error creating notification: $e');
+      print(
+        '❌ NotificationService: Error creating notification for user ${notification.userId}: $e',
+      );
       rethrow;
     }
   }
@@ -29,15 +31,16 @@ class NotificationService {
       final snapshot = await _firestore
           .collection(_collection)
           .where('userId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .limit(limit)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final notifications = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return AppNotification.fromMap(data);
       }).toList();
+
+      notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return notifications.take(limit).toList();
     } catch (e) {
       print('❌ NotificationService: Error getting notifications: $e');
       return [];
@@ -49,15 +52,16 @@ class NotificationService {
     return _firestore
         .collection(_collection)
         .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
-        .limit(50)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
+          final notifications = snapshot.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return AppNotification.fromMap(data);
           }).toList();
+
+          notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return notifications.take(50).toList();
         });
   }
 
@@ -78,12 +82,14 @@ class NotificationService {
       final snapshot = await _firestore
           .collection(_collection)
           .where('userId', isEqualTo: userId)
-          .where('read', isEqualTo: false)
           .get();
 
       final batch = _firestore.batch();
       for (final doc in snapshot.docs) {
-        batch.update(doc.reference, {'read': true});
+        final isRead = doc.data()['read'] == true;
+        if (!isRead) {
+          batch.update(doc.reference, {'read': true});
+        }
       }
       await batch.commit();
     } catch (e) {
@@ -94,13 +100,8 @@ class NotificationService {
   /// Get unread notification count
   Future<int> getUnreadCount(String userId) async {
     try {
-      final snapshot = await _firestore
-          .collection(_collection)
-          .where('userId', isEqualTo: userId)
-          .where('read', isEqualTo: false)
-          .count()
-          .get();
-      return snapshot.count ?? 0;
+      final notifications = await getNotifications(userId, limit: 200);
+      return notifications.where((n) => !n.read).length;
     } catch (e) {
       print('❌ NotificationService: Error getting unread count: $e');
       return 0;
@@ -109,12 +110,9 @@ class NotificationService {
 
   /// Stream of unread count
   Stream<int> listenToUnreadCount(String userId) {
-    return _firestore
-        .collection(_collection)
-        .where('userId', isEqualTo: userId)
-        .where('read', isEqualTo: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.length);
+    return listenToNotifications(userId).map(
+      (notifications) => notifications.where((n) => !n.read).length,
+    );
   }
 
   /// Delete a notification
@@ -200,6 +198,48 @@ class NotificationService {
       message: 'You received Rs ${amount.toStringAsFixed(0)} for your ride.',
       timestamp: DateTime.now(),
       rideId: rideId,
+    );
+    await createNotification(notification);
+  }
+
+  /// Create a new message notification
+  Future<void> createMessageNotification({
+    required String userId,
+    required String senderName,
+    required String messagePreview,
+    String? rideId,
+  }) async {
+    final preview = messagePreview.trim();
+    final truncated = preview.length > 80
+        ? '${preview.substring(0, 80)}...'
+        : preview;
+
+    final notification = AppNotification(
+      id: const Uuid().v4(),
+      userId: userId,
+      type: NotificationType.newMessage,
+      title: 'New message from $senderName',
+      message: truncated,
+      timestamp: DateTime.now(),
+      rideId: rideId,
+      actionUrl: '/messages',
+    );
+    await createNotification(notification);
+  }
+
+  /// Create an incoming call notification
+  Future<void> createIncomingCallNotification({
+    required String userId,
+    required String callerName,
+  }) async {
+    final notification = AppNotification(
+      id: const Uuid().v4(),
+      userId: userId,
+      type: NotificationType.incomingCall,
+      title: 'Incoming call',
+      message: '$callerName is calling you',
+      timestamp: DateTime.now(),
+      actionUrl: '/messages',
     );
     await createNotification(notification);
   }

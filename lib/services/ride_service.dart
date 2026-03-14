@@ -265,49 +265,33 @@ class RideService {
   /// Get upcoming rides for driver
   Future<List<Ride>> getUpcomingRidesForDriver(String driverId) async {
     final now = DateTime.now();
+    final rides = await getRidesByDriver(driverId);
 
-    final docs = await _firestoreService.advancedQuery(
-      collection: _collection,
-      conditions: [
-        QueryCondition(field: 'driverId', operator: '==', value: driverId),
-        QueryCondition(
-          field: 'departureTime',
-          operator: '>=',
-          value: now.millisecondsSinceEpoch,
-        ),
-        QueryCondition(
-          field: 'status',
-          operator: '!=',
-          value: RideStatus.cancelled.name,
-        ),
-      ],
-      orderByField: 'departureTime',
-      descending: false,
-    );
-
-    return docs.map((doc) => Ride.fromMap(doc)).toList();
+    return rides
+        .where(
+          (ride) =>
+              ride.departureTime.isAfter(now) &&
+              (ride.status == RideStatus.scheduled ||
+                  ride.status == RideStatus.driverEnRoute),
+        )
+        .toList()
+      ..sort((a, b) => a.departureTime.compareTo(b.departureTime));
   }
 
   /// Get past rides for driver
   Future<List<Ride>> getPastRidesForDriver(String driverId) async {
     final now = DateTime.now();
+    final rides = await getRidesByDriver(driverId);
 
-    final docs = await _firestoreService.advancedQuery(
-      collection: _collection,
-      conditions: [
-        QueryCondition(field: 'driverId', operator: '==', value: driverId),
-        QueryCondition(
-          field: 'departureTime',
-          operator: '<',
-          value: now.millisecondsSinceEpoch,
-        ),
-      ],
-      orderByField: 'departureTime',
-      descending: true,
-      limit: 50,
-    );
-
-    return docs.map((doc) => Ride.fromMap(doc)).toList();
+    return rides
+        .where(
+          (ride) =>
+              ride.status == RideStatus.completed ||
+              ride.status == RideStatus.cancelled ||
+              ride.departureTime.isBefore(now),
+        )
+        .toList()
+      ..sort((a, b) => b.departureTime.compareTo(a.departureTime));
   }
 
   /// Get rides where user is a passenger

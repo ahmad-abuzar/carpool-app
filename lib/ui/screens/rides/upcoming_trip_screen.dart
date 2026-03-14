@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../models/booking.dart';
 import '../../../models/ride.dart';
+import '../../../services/booking_service.dart';
 import '../../../services/ride_service.dart';
 import '../../../state/providers.dart';
 import '../../theme/color_palette.dart';
@@ -19,7 +21,28 @@ class UpcomingTripScreen extends ConsumerWidget {
     final timeFormat = DateFormat('h:mm a');
     final dateFormat = DateFormat('EEE, MMM d');
     final currentUser = ref.watch(currentUserProvider);
+    final bookingsAsync = ref.watch(userBookingsProvider);
     final isDriver = currentUser?.id == ride.driver.id;
+    final activeBooking = bookingsAsync.maybeWhen(
+      data: (bookings) {
+        if (currentUser == null || isDriver) return null;
+
+        final matched = bookings
+            .where(
+              (b) =>
+                  b.rideId == ride.id &&
+                  b.passenger.id == currentUser.id &&
+                  (b.status == BookingStatus.pending ||
+                      b.status == BookingStatus.confirmed),
+            )
+            .toList();
+
+        if (matched.isEmpty) return null;
+        matched.sort((a, b) => b.bookingTime.compareTo(a.bookingTime));
+        return matched.first;
+      },
+      orElse: () => null,
+    );
 
     final minutesUntilDeparture = ride.departureTime
         .difference(DateTime.now())
@@ -259,6 +282,52 @@ class UpcomingTripScreen extends ConsumerWidget {
               ),
             ),
 
+            const SizedBox(height: Spacing.md),
+
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  if (isDriver) {
+                    final confirmed = await _confirmCancellation(
+                      context,
+                      title: 'Cancel this ride?',
+                      message:
+                          'This will cancel the trip for all passengers and remove it from upcoming rides.',
+                    );
+                    if (!confirmed) return;
+
+                    await _cancelRideAsDriver(context);
+                    return;
+                  }
+
+                  if (activeBooking == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No active booking found for this ride.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final reason = await _askCancellationReason(context);
+                  if (reason == null) return;
+
+                  await _cancelRideAsPassenger(
+                    context,
+                    bookingId: activeBooking.id,
+                    reason: reason,
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                ),
+                icon: const Icon(Icons.cancel_outlined),
+                label: Text(isDriver ? 'Cancel Ride' : 'Cancel My Booking'),
+              ),
+            ),
+
             const SizedBox(height: Spacing.xl),
 
             // Emergency section
@@ -330,6 +399,138 @@ class UpcomingTripScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _cancelRideAsPassenger(
+    BuildContext context, {
+    required String bookingId,
+    required String reason,
+  }) async {
+    try {
+      await BookingService().cancelBooking(bookingId, reason);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking cancelled successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not cancel booking: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelRideAsDriver(BuildContext context) async {
+    try {
+      await RideService().cancelRide(ride.id);
+
+      final bookings = await BookingService().getBookingsByRide(ride.id);
+      for (final booking in bookings) {
+        if (booking.status == BookingStatus.pending ||
+            booking.status == BookingStatus.confirmed) {
+          await BookingService().cancelBooking(
+            booking.id,
+            'Ride cancelled by driver',
+          );
+        }
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ride cancelled successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not cancel ride: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<bool> _confirmCancellation(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep Ride'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Cancel Ride'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  Future<String?> _askCancellationReason(BuildContext context) async {
+    final controller = TextEditingController();
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel booking'),
+        content: TextField(
+          controller: controller,
+          maxLength: 120,
+          decoration: const InputDecoration(
+            labelText: 'Reason',
+            hintText: 'Tell us why you are cancelling',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Back'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isEmpty) {
+                Navigator.pop(ctx, 'Cancelled by passenger');
+                return;
+              }
+              Navigator.pop(ctx, value);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Confirm Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    return reason;
   }
 }
 

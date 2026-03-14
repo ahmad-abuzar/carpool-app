@@ -9,22 +9,31 @@ import '../../../models/user.dart';
 import '../../../models/notification.dart';
 import '../../../models/booking.dart';
 import '../../../services/firestore_service.dart';
+import '../../../state/notification_provider.dart';
 import '../../theme/color_palette.dart';
 import '../../theme/spacing.dart';
 import '../../theme/typography.dart';
 
 import '../../widgets/ride_card.dart';
 
+final homeRefreshTickerProvider = StreamProvider.autoDispose<int>((ref) {
+  // Force a lightweight rebuild so time-based ride filtering stays current.
+  return Stream<int>.periodic(const Duration(seconds: 30), (tick) => tick);
+});
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(homeRefreshTickerProvider);
+
     final currentUser = ref.watch(currentUserProvider);
     final rides = ref.watch(ridesProvider);
-    final unreadNotifications = ref
-        .watch(notificationsProvider.notifier)
-        .unreadCount;
+    final unreadNotifications = ref.watch(unreadNotificationCountProvider).maybeWhen(
+      data: (count) => count,
+      orElse: () => 0,
+    );
 
     // Auto-suggested rides (nearby/matching preferences)
     final now = DateTime.now();
@@ -50,29 +59,40 @@ class HomeScreen extends ConsumerWidget {
 
     // Next upcoming ride (if any bookings)
     final bookingsAsync = ref.watch(userBookingsProvider);
+    final ridesById = {for (final ride in rides) ride.id: ride};
     final upcomingBookings = bookingsAsync.maybeWhen(
       data: (bookings) {
-        print('🏠 HomeScreen: Total bookings received: ${bookings.length}');
         final upcoming =
             bookings.where((b) {
-              final isUpcoming = b.ride.departureTime.isAfter(DateTime.now());
-              print(
-                '   - Booking ${b.id}: ${b.ride.departureTime} (upcoming: $isUpcoming, status: ${b.status.name})',
-              );
-              return isUpcoming;
+              final liveRide = ridesById[b.rideId] ?? b.ride;
+              final hasActiveBookingStatus =
+                  b.status == BookingStatus.pending ||
+                  b.status == BookingStatus.confirmed;
+              final hasActiveRideStatus =
+                  liveRide.status != RideStatus.completed &&
+                  liveRide.status != RideStatus.cancelled;
+              final isUpcomingOrOngoing =
+                  liveRide.departureTime.isAfter(now) ||
+                  liveRide.status == RideStatus.driverEnRoute ||
+                  liveRide.status == RideStatus.inProgress;
+
+              return hasActiveBookingStatus &&
+                  hasActiveRideStatus &&
+                  isUpcomingOrOngoing;
             }).toList()..sort(
-              (a, b) => a.ride.departureTime.compareTo(b.ride.departureTime),
+              (a, b) {
+                final aRide = ridesById[a.rideId] ?? a.ride;
+                final bRide = ridesById[b.rideId] ?? b.ride;
+                return aRide.departureTime.compareTo(bRide.departureTime);
+              },
             );
-        print('🏠 HomeScreen: Filtered upcoming bookings: ${upcoming.length}');
         return upcoming;
       },
-      orElse: () {
-        print('🏠 HomeScreen: No booking data available');
-        return <Booking>[];
-      },
+      orElse: () => <Booking>[],
     );
 
     return Scaffold(
+      endDrawer: const _NotificationSidebar(),
       body: CustomScrollView(
         slivers: [
           // App Bar
@@ -118,17 +138,30 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
             actions: [
-              // Notifications
-              IconButton(
-                icon: Badge(
-                  isLabelVisible: unreadNotifications > 0,
-                  label: Text('$unreadNotifications'),
-                  child: const Icon(Icons.notifications_outlined),
+              Builder(
+                builder: (context) => IconButton(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.menu_open),
+                      if (unreadNotifications > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  tooltip: 'Notifications',
+                  onPressed: () => Scaffold.of(context).openEndDrawer(),
                 ),
-                onPressed: () {
-                  // Show notifications bottom sheet
-                  _showNotifications(context, ref);
-                },
               ),
             ],
           ),
@@ -238,7 +271,12 @@ class HomeScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: Spacing.md),
-                  _NextRideCard(booking: upcomingBookings.first),
+                  _NextRideCard(
+                    booking: upcomingBookings.first,
+                    ride:
+                        ridesById[upcomingBookings.first.rideId] ??
+                        upcomingBookings.first.ride,
+                  ),
                   const SizedBox(height: Spacing.xl),
                 ] else ...[
                   Card(
@@ -322,15 +360,20 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  void _showNotifications(BuildContext context, WidgetRef ref) {
-    final notifications = ref.read(notificationsProvider);
+}
 
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        expand: false,
-        builder: (context, scrollController) => Column(
+class _NotificationSidebar extends ConsumerWidget {
+  const _NotificationSidebar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+    final notificationService = ref.watch(notificationServiceProvider);
+    final notificationsAsync = ref.watch(userNotificationsProvider);
+
+    return Drawer(
+      child: SafeArea(
+        child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(Spacing.lg),
@@ -343,7 +386,9 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   TextButton(
                     onPressed: () {
-                      ref.read(notificationsProvider.notifier).markAllAsRead();
+                      if (currentUser != null) {
+                        notificationService.markAllAsRead(currentUser.id);
+                      }
                     },
                     child: const Text('Mark all read'),
                   ),
@@ -352,44 +397,66 @@ class HomeScreen extends ConsumerWidget {
             ),
             const Divider(height: 1),
             Expanded(
-              child: ListView.builder(
-                controller: scrollController,
-                itemCount: notifications.length,
-                itemBuilder: (context, index) {
-                  final notif = notifications[index];
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: notif.read
-                          ? Theme.of(context).colorScheme.surfaceVariant
-                          : Theme.of(context).colorScheme.primaryContainer,
-                      child: Icon(
-                        _getNotificationIcon(notif.type),
-                        color: notif.read
-                            ? Theme.of(context).colorScheme.onSurfaceVariant
-                            : Theme.of(context).colorScheme.primary,
+              child: notificationsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(Spacing.lg),
+                    child: Text(
+                      'Failed to load notifications\n$error',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodySmall(context),
+                    ),
+                  ),
+                ),
+                data: (notifications) {
+                  if (notifications.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No notifications yet',
+                        style: AppTypography.body(context),
                       ),
-                    ),
-                    title: Text(
-                      notif.title,
-                      style: TextStyle(
-                        fontWeight: notif.read
-                            ? FontWeight.normal
-                            : FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(notif.message),
-                    trailing: Text(
-                      _formatTime(notif.timestamp),
-                      style: AppTypography.labelSmall(context),
-                    ),
-                    onTap: () {
-                      ref
-                          .read(notificationsProvider.notifier)
-                          .markAsRead(notif.id);
-                      if (notif.rideId != null) {
-                        // Navigate to ride details
-                        context.pop();
-                      }
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) {
+                      final notif = notifications[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: notif.read
+                              ? Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                              : Theme.of(context).colorScheme.primaryContainer,
+                          child: Icon(
+                            _getNotificationIcon(notif.type),
+                            color: notif.read
+                                ? Theme.of(context).colorScheme.onSurfaceVariant
+                                : Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        title: Text(
+                          notif.title,
+                          style: TextStyle(
+                            fontWeight: notif.read
+                                ? FontWeight.normal
+                                : FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(notif.message),
+                        trailing: Text(
+                          _formatTime(notif.timestamp),
+                          style: AppTypography.labelSmall(context),
+                        ),
+                        onTap: () {
+                          notificationService.markAsRead(notif.id);
+                          if (notif.rideId != null) {
+                            context.pop();
+                          }
+                        },
+                      );
                     },
                   );
                 },
@@ -417,6 +484,8 @@ class HomeScreen extends ConsumerWidget {
         return Icons.payment;
       case NotificationType.newMessage:
         return Icons.message;
+      case NotificationType.incomingCall:
+        return Icons.call;
       case NotificationType.ratingRequest:
         return Icons.star;
     }
@@ -650,13 +719,13 @@ class _QuickFilterChip extends StatelessWidget {
 }
 
 class _NextRideCard extends StatelessWidget {
-  final dynamic booking;
+  final Booking booking;
+  final Ride ride;
 
-  const _NextRideCard({required this.booking});
+  const _NextRideCard({required this.booking, required this.ride});
 
   @override
   Widget build(BuildContext context) {
-    final ride = booking.ride;
     final timeFormat = DateFormat('h:mm a');
     final dateFormat = DateFormat('EEE, MMM d');
 

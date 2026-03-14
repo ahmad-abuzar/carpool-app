@@ -17,7 +17,16 @@ final userNotificationsProvider = StreamProvider<List<AppNotification>>((ref) {
     return Stream.value([]);
   }
 
-  return service.listenToNotifications(user.id);
+  return (() async* {
+    try {
+      await for (final notifications in service.listenToNotifications(user.id)) {
+        yield notifications;
+      }
+    } catch (e) {
+      print('❌ userNotificationsProvider stream error: $e');
+      yield <AppNotification>[];
+    }
+  })();
 });
 
 /// Unread Notification Count Provider (real-time)
@@ -29,5 +38,14 @@ final unreadNotificationCountProvider = StreamProvider<int>((ref) {
     return Stream.value(0);
   }
 
-  return service.listenToUnreadCount(user.id);
+  return (() async* {
+    try {
+      await for (final count in service.listenToUnreadCount(user.id)) {
+        yield count;
+      }
+    } catch (e) {
+      print('❌ unreadNotificationCountProvider stream error: $e');
+      yield 0;
+    }
+  })();
 });

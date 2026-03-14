@@ -116,26 +116,76 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
             const Divider(),
             const SizedBox(height: Spacing.xl),
 
-            // Payment method
-            Text('Payment Method', style: AppTypography.headlineSmall(context)),
-            const SizedBox(height: Spacing.md),
+            // Payment Mode
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Payment Mode',
+                  style: AppTypography.headlineSmall(context),
+                ),
+                TextButton(
+                  onPressed: _showPaymentModePicker,
+                  child: const Text('Change'),
+                ),
+              ],
+            ),
+            const SizedBox(height: Spacing.sm),
 
-            ...MockDataService.getPaymentMethods().map((method) {
-              return RadioListTile<PaymentMethod>(
-                title: Text(method.displayName),
-                subtitle: method.type == PaymentMethodType.cash
-                    ? const Text('Pay driver directly')
-                    : null,
-                value: method,
-                groupValue: _selectedPaymentMethod,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPaymentMethod = value!;
-                  });
-                },
-                secondary: Icon(_getPaymentIcon(method.type)),
-              );
-            }),
+            InkWell(
+              onTap: _showPaymentModePicker,
+              borderRadius: BorderRadius.circular(12),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.lg,
+                    vertical: Spacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(Spacing.sm),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          _getPaymentIcon(_selectedPaymentMethod.type),
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedPaymentMethod.displayName,
+                              style: AppTypography.body(
+                                context,
+                                weight: FontWeight.bold,
+                              ),
+                            ),
+                            if (_selectedPaymentMethod.type ==
+                                PaymentMethodType.cash)
+                              Text(
+                                'Pay driver directly',
+                                style: AppTypography.bodySmall(context),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).disabledColor,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
             const SizedBox(height: Spacing.xl),
             const Divider(),
@@ -240,6 +290,83 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showPaymentModePicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Spacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+                  child: Text(
+                    'Select Payment Mode',
+                    style: AppTypography.headlineSmall(context),
+                  ),
+                ),
+                const SizedBox(height: Spacing.md),
+                ...MockDataService.getPaymentMethods().map((method) {
+                  final isSelected = _selectedPaymentMethod.id == method.id;
+                  return ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(Spacing.sm),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primaryContainer
+                            : Theme.of(
+                                context,
+                              ).colorScheme.surfaceVariant.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _getPaymentIcon(method.type),
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    title: Text(
+                      method.displayName,
+                      style: AppTypography.body(
+                        context,
+                        weight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    subtitle: method.type == PaymentMethodType.cash
+                        ? const Text('Pay driver directly')
+                        : null,
+                    trailing: isSelected
+                        ? Icon(
+                            Icons.check_circle,
+                            color: Theme.of(context).colorScheme.primary,
+                          )
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedPaymentMethod = method;
+                      });
+                      Navigator.pop(context);
+                    },
+                  );
+                }),
+                const SizedBox(height: Spacing.md),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

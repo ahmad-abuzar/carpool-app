@@ -2,25 +2,44 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message.dart';
 import '../models/user.dart';
 import 'firestore_service.dart';
+import 'notification_service.dart';
 
 /// Messaging Service
 /// Handles all messaging and conversation operations
 class MessagingService {
   final FirestoreService _firestoreService = FirestoreService();
+  final NotificationService _notificationService = NotificationService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static const String _messagesCollection = 'messages';
   static const String _conversationsCollection = 'conversations';
 
   /// Send a message
-  Future<String> sendMessage(Message message) async {
+  Future<String> sendMessage(Message message, {String? senderName}) async {
     final messageId = await _firestoreService.createDocumentWithAutoId(
       collection: _messagesCollection,
       data: message.toMap(),
     );
 
     // Update or create conversation
-    await _updateConversation(message);
+    try {
+      await _updateConversation(message);
+    } catch (e) {
+      // Conversation metadata should not block message delivery/notifications.
+      print('⚠️ MessagingService: Conversation update failed: $e');
+    }
+
+    // Create in-app notification for receiver
+    try {
+      await _notificationService.createMessageNotification(
+        userId: message.receiverId,
+        senderName: senderName ?? 'Someone',
+        messagePreview: message.content,
+        rideId: message.rideId,
+      );
+    } catch (e) {
+      print('⚠️ MessagingService: Could not create message notification: $e');
+    }
 
     return messageId;
   }
@@ -38,6 +57,7 @@ class MessagingService {
       data: {
         'id': conversationId,
         'participants': [message.senderId, message.receiverId],
+        'participantIds': [message.senderId, message.receiverId],
         'lastMessage': message.toMap(),
         'lastMessageTime': message.timestamp.millisecondsSinceEpoch,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -46,12 +66,20 @@ class MessagingService {
     );
 
     // Increment unread count for receiver
-    await _firestore
-        .collection(_conversationsCollection)
-        .doc(conversationId)
-        .collection('metadata')
-        .doc(message.receiverId)
-        .set({'unreadCount': FieldValue.increment(1)}, SetOptions(merge: true));
+    try {
+      await _firestore
+          .collection(_conversationsCollection)
+          .doc(conversationId)
+          .collection('metadata')
+          .doc(message.receiverId)
+          .set(
+            {'unreadCount': FieldValue.increment(1)},
+            SetOptions(merge: true),
+          );
+    } catch (e) {
+      // Some Firestore rule sets don't allow nested metadata subcollection.
+      print('⚠️ MessagingService: Metadata unread update skipped: $e');
+    }
   }
 
   /// Get conversation ID from two user IDs

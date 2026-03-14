@@ -98,27 +98,45 @@ class _RideListTabState extends State<_RideListTab>
 
   void _loadRides() {
     final rideService = RideService();
-    switch (widget.type) {
-      case _RideListType.upcoming:
-        _ridesFuture = rideService.getUpcomingRidesForDriver(widget.driverId);
-        break;
-      case _RideListType.active:
-        _ridesFuture = rideService
-            .getRidesByDriver(widget.driverId)
-            .then(
-              (rides) => rides
-                  .where(
-                    (r) =>
-                        r.status == RideStatus.inProgress ||
-                        r.status == RideStatus.driverEnRoute,
-                  )
-                  .toList(),
-            );
-        break;
-      case _RideListType.past:
-        _ridesFuture = rideService.getPastRidesForDriver(widget.driverId);
-        break;
-    }
+    _ridesFuture = rideService.getRidesByDriver(widget.driverId).then((rides) {
+      final now = DateTime.now();
+
+      switch (widget.type) {
+        case _RideListType.upcoming:
+          final filtered = rides
+              .where(
+                (r) =>
+                    r.departureTime.isAfter(now) &&
+                    r.status == RideStatus.scheduled,
+              )
+              .toList()
+            ..sort((a, b) => a.departureTime.compareTo(b.departureTime));
+          return filtered;
+
+        case _RideListType.active:
+          final filtered = rides
+              .where(
+                (r) =>
+                    r.status == RideStatus.inProgress ||
+                    r.status == RideStatus.driverEnRoute,
+              )
+              .toList()
+            ..sort((a, b) => a.departureTime.compareTo(b.departureTime));
+          return filtered;
+
+        case _RideListType.past:
+          final filtered = rides
+              .where(
+                (r) =>
+                    r.status == RideStatus.completed ||
+                    r.status == RideStatus.cancelled ||
+                    r.departureTime.isBefore(now),
+              )
+              .toList()
+            ..sort((a, b) => b.departureTime.compareTo(a.departureTime));
+          return filtered;
+      }
+    });
   }
 
   @override

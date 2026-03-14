@@ -3,9 +3,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../models/call.dart';
+import 'notification_service.dart';
 
 /// Service for making phone calls and handling call-related functionality
 class CallService {
+  final NotificationService _notificationService = NotificationService();
+
   /// Make a phone call to the given number
   /// Returns true if call was initiated successfully
   static Future<bool> makeCall(String phoneNumber) async {
@@ -310,6 +313,16 @@ class CallService {
 
       // Save call to Firestore
       await _firestore.collection('calls').doc(callId).set(call.toMap());
+
+      // Also create a bell notification for the receiver.
+      try {
+        await _notificationService.createIncomingCallNotification(
+          userId: receiverId,
+          callerName: callerName,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Could not create incoming call notification: $e');
+      }
 
       debugPrint('✅ Agora call initiated: $callId');
       return call;

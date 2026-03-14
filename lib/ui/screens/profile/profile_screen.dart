@@ -356,7 +356,7 @@ class ProfileScreen extends ConsumerWidget {
                 _SectionHeader(title: 'Payment'),
                 _MenuItem(
                   icon: Icons.payment,
-                  title: 'Payment Methods',
+                  title: 'Payment Mode',
                   subtitle: 'Manage your payment options',
                   onTap: () => context.push('/payment-methods'),
                 ),

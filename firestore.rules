@@ -100,16 +100,27 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       // Participants can read
       allow read: if isAuthenticated() &&
-        request.auth.uid in resource.data.participantIds;
+        ((resource.data.participantIds is list && request.auth.uid in resource.data.participantIds) ||
+         (resource.data.participants is list && request.auth.uid in resource.data.participants));
 
       // Anyone authenticated can create (starting a conversation)
       allow create: if isAuthenticated();
 
       // Participants can update
       allow update: if isAuthenticated() &&
-        request.auth.uid in resource.data.participantIds;
+        ((resource.data.participantIds is list && request.auth.uid in resource.data.participantIds) ||
+         (resource.data.participants is list && request.auth.uid in resource.data.participants));
 
       allow delete: if false; // Don't allow direct deletion
+    }
+
+    // Conversations metadata (e.g., unread counters)
+    match /conversations/{conversationId}/metadata/{userId} {
+      allow read, write: if isAuthenticated() &&
+        ((get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds is list &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds) ||
+         (get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants is list &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants));
     }
 
     // ─── Notifications Collection ───

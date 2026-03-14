@@ -453,7 +453,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       rideId: widget.rideId,
     );
 
-    ref.read(messagingServiceProvider).sendMessage(message);
+    ref.read(messagingServiceProvider).sendMessage(
+      message,
+      senderName: currentUser.name,
+    );
 
     // With reverse: true, ListView automatically maintains scroll position
     // No manual scrolling needed

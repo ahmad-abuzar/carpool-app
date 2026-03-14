@@ -8,6 +8,7 @@ enum NotificationType {
   rideCompleted,
   paymentReceived,
   newMessage,
+  incomingCall,
   ratingRequest,
 }
 

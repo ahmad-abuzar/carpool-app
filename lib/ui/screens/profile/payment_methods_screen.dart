@@ -6,8 +6,8 @@ class PaymentMethodsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Payment Methods')),
-      body: const Center(child: Text('Payment Methods Screen')),
+      appBar: AppBar(title: const Text('Payment Mode')),
+      body: const Center(child: Text('Payment Mode Screen')),
     );
   }
 }
