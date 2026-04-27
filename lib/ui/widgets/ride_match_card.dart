@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/ai/ai_ride_matching_service.dart';
-import '../../models/ride.dart';
 
 /// Ride Match Card
 /// Displays a ride with AI compatibility score

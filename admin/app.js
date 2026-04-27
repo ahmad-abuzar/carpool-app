@@ -21,6 +21,9 @@ let allUsers = [];
 let allCommissions = [];
 let userFilter = 'all';
 let commissionTab = 'all';
+let dashboardClockTimer = null;
+let dashboardAutoRefreshTimer = null;
+let dashboardAutoRefreshEnabled = true;
 
 // ─── Admin Credentials ───────────────────────────
 const ADMIN_EMAIL = 'admin@ezride.com';
@@ -37,6 +40,7 @@ function handleLogin(e) {
         errorEl.style.display = 'none';
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app').style.display = 'flex';
+        initDashboardExperience();
         loadDashboard();
         loadUsers();
         loadCommissions();
@@ -47,6 +51,10 @@ function handleLogin(e) {
 }
 
 function handleLogout() {
+  clearInterval(dashboardAutoRefreshTimer);
+  dashboardAutoRefreshTimer = null;
+  clearInterval(dashboardClockTimer);
+  dashboardClockTimer = null;
     document.getElementById('app').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-email').value = '';
@@ -96,9 +104,9 @@ async function loadDashboard() {
         const activeRiders = users.filter(u => u.role === 'driver' || u.totalRidesAsDriver > 0).length;
         const lockedProfiles = users.filter(u => u.isProfileLocked === true).length;
 
-        document.getElementById('stat-total-users').textContent = totalUsers;
-        document.getElementById('stat-active-riders').textContent = activeRiders;
-        document.getElementById('stat-locked-profiles').textContent = lockedProfiles;
+        animateStatValue('stat-total-users', totalUsers);
+        animateStatValue('stat-active-riders', activeRiders);
+        animateStatValue('stat-locked-profiles', lockedProfiles);
 
         // Update locked badge
         const lockedBadge = document.getElementById('locked-count-badge');
@@ -123,7 +131,7 @@ async function loadDashboard() {
 
         const totalCommission = totalPending + totalCollected;
 
-        document.getElementById('stat-total-commission').textContent = `Rs ${totalCollected.toLocaleString()}`;
+        animateStatValue('stat-total-commission', totalCollected, { prefix: 'Rs ' });
         document.getElementById('overview-pending').textContent = `Rs ${totalPending.toLocaleString()}`;
         document.getElementById('overview-collected').textContent = `Rs ${totalCollected.toLocaleString()}`;
 
@@ -139,11 +147,128 @@ async function loadDashboard() {
             .slice(0, 8);
 
         renderRecentCommissions(recent);
+        renderDashboardInsights({
+          totalUsers,
+          activeRiders,
+          lockedProfiles,
+          totalPending,
+          totalCollected,
+          commissions,
+        });
 
     } catch (err) {
         console.error('Dashboard error:', err);
         showToast('Failed to load dashboard', 'error');
     }
+}
+
+function animateStatValue(id, target, { prefix = '', suffix = '' } = {}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const clean = (el.textContent || '').replace(/[^\d.-]/g, '');
+  const start = Number(clean) || 0;
+  const end = Number(target) || 0;
+  const duration = 550;
+  const startTime = performance.now();
+
+  function frame(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = Math.round(start + (end - start) * eased);
+    el.textContent = `${prefix}${value.toLocaleString()}${suffix}`;
+    if (progress < 1) requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+function renderDashboardInsights({
+  totalUsers,
+  activeRiders,
+  lockedProfiles,
+  totalPending,
+  totalCollected,
+  commissions,
+}) {
+  const container = document.getElementById('dashboard-insights');
+  if (!container) return;
+
+  const lockRate = totalUsers > 0 ? (lockedProfiles / totalUsers) * 100 : 0;
+  const avgCommission = commissions.length > 0
+    ? (totalPending + totalCollected) / commissions.length
+    : 0;
+  const riderCoverage = totalUsers > 0 ? (activeRiders / totalUsers) * 100 : 0;
+
+  container.innerHTML = `
+    <div class="insight-card">
+    <div class="insight-label">Lock Risk</div>
+    <div class="insight-value ${lockRate > 20 ? 'insight-bad' : lockRate > 8 ? 'insight-warn' : 'insight-good'}">${lockRate.toFixed(1)}%</div>
+    <div class="insight-meta">${lockedProfiles} of ${totalUsers} profiles</div>
+    </div>
+    <div class="insight-card">
+    <div class="insight-label">Avg Commission</div>
+    <div class="insight-value">Rs ${Math.round(avgCommission).toLocaleString()}</div>
+    <div class="insight-meta">per commission record</div>
+    </div>
+    <div class="insight-card">
+    <div class="insight-label">Driver Coverage</div>
+    <div class="insight-value ${riderCoverage < 18 ? 'insight-warn' : 'insight-good'}">${riderCoverage.toFixed(1)}%</div>
+    <div class="insight-meta">users active as riders</div>
+    </div>
+  `;
+}
+
+function initDashboardExperience() {
+  startDashboardClock();
+  setDashboardAutoRefresh(true);
+}
+
+function startDashboardClock() {
+  const timeEl = document.getElementById('dashboard-time');
+  const dateEl = document.getElementById('dashboard-date');
+  if (!timeEl || !dateEl) return;
+
+  const update = () => {
+    const now = new Date();
+    timeEl.textContent = now.toLocaleTimeString('en-PK', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    dateEl.textContent = now.toLocaleDateString('en-PK', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  update();
+  clearInterval(dashboardClockTimer);
+  dashboardClockTimer = setInterval(update, 1000);
+}
+
+function setDashboardAutoRefresh(enabled) {
+  dashboardAutoRefreshEnabled = enabled;
+  clearInterval(dashboardAutoRefreshTimer);
+
+  if (!enabled) {
+    showToast('Auto refresh paused');
+    return;
+  }
+
+  dashboardAutoRefreshTimer = setInterval(() => {
+    if (currentPage === 'dashboard') {
+      loadDashboard();
+    }
+  }, 30000);
+  showToast('Auto refresh enabled', 'success');
+}
+
+function refreshDashboardNow() {
+  loadDashboard();
+  showToast('Dashboard updated', 'success');
 }
 
 function renderRecentCommissions(commissions) {
@@ -624,4 +749,10 @@ function showToast(message, type = '') {
 // ─── Keyboard shortcut: Escape to close modal ────
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeUserModal();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('app')?.style.display !== 'none') {
+    initDashboardExperience();
+  }
 });

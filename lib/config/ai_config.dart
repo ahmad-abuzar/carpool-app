@@ -1,3 +1,5 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// AI Configuration
 /// Manages API keys and AI service settings
 class AIConfig {
@@ -27,8 +29,14 @@ class AIConfig {
   static const bool enableFallback = true;
   static const int maxRetries = 3;
 
+  static String get resolvedGeminiApiKey {
+    final envKey = dotenv.env['GEMINI_API_KEY']?.trim() ?? '';
+    if (envKey.isNotEmpty) return envKey;
+    return geminiApiKey.trim();
+  }
+
   // Validate configuration
-  static bool get isConfigured => geminiApiKey.isNotEmpty;
+  static bool get isConfigured => resolvedGeminiApiKey.isNotEmpty;
 
   // Get API key from environment or throw error
   static String getApiKey() {
@@ -37,6 +45,6 @@ class AIConfig {
         'Gemini API key not configured. Please set GEMINI_API_KEY environment variable.',
       );
     }
-    return geminiApiKey;
+    return resolvedGeminiApiKey;
   }
 }

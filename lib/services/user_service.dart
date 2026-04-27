@@ -139,8 +139,9 @@ class UserService {
     if (emailVerified != null) updates['emailVerified'] = emailVerified;
     if (idVerified != null) updates['idVerified'] = idVerified;
     if (faceVerified != null) updates['faceVerified'] = faceVerified;
-    if (fingerprintsVerified != null)
+    if (fingerprintsVerified != null) {
       updates['fingerprintsVerified'] = fingerprintsVerified;
+    }
     if (vehicleVerified != null) updates['vehicleVerified'] = vehicleVerified;
 
     if (updates.isNotEmpty) {
@@ -280,12 +281,15 @@ class UserService {
 
     if (homeAddress != null) updates['homeAddress'] = homeAddress;
     if (workAddress != null) updates['workAddress'] = workAddress;
-    if (preferFemaleOnlyRides != null)
+    if (preferFemaleOnlyRides != null) {
       updates['preferFemaleOnlyRides'] = preferFemaleOnlyRides;
-    if (notificationsEnabled != null)
+    }
+    if (notificationsEnabled != null) {
       updates['notificationsEnabled'] = notificationsEnabled;
-    if (locationSharingEnabled != null)
+    }
+    if (locationSharingEnabled != null) {
       updates['locationSharingEnabled'] = locationSharingEnabled;
+    }
 
     if (updates.isNotEmpty) {
       await updateUserProfile(userId, updates);

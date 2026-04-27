@@ -20,7 +20,7 @@ class _FaceLivenessScreenState extends State<FaceLivenessScreen> {
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
   int _currentStep = 0; // 0=blink, 1=left, 2=right
-  List<File?> _capturedImages = [null, null, null];
+  final List<File?> _capturedImages = [null, null, null];
 
   final List<String> _instructions = [
     'Blink your eyes normally',

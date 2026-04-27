@@ -136,8 +136,8 @@ class FingerprintCaptureScreen extends ConsumerWidget {
     final currentUser = ref.read(currentUserProvider);
     if (currentUser == null) return;
 
-    final rightHand = result['rightHand'] as File?;
-    final leftHand = result['leftHand'] as File?;
+    final rightHand = result['rightHand'];
+    final leftHand = result['leftHand'];
 
     if (rightHand == null || leftHand == null) return;
 

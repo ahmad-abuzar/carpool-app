@@ -170,18 +170,20 @@ class _FingerprintRealtimeScreenState extends State<FingerprintRealtimeScreen>
             }
           }
         } else {
-          if (mounted)
+          if (mounted) {
             setState(() {
               _handDistance = 1.0;
               _detectedPose = null;
             });
+          }
         }
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _handDistance = 1.0;
             _detectedPose = null;
           });
+        }
       }
     } catch (e) {
       print('Error processing image: $e');

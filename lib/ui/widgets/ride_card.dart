@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../models/ride.dart';
-import '../../models/user.dart';
 import '../theme/color_palette.dart';
 import '../theme/spacing.dart';
 import '../theme/typography.dart';

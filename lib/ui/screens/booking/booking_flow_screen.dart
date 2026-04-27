@@ -325,7 +325,7 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen> {
                             ? Theme.of(context).colorScheme.primaryContainer
                             : Theme.of(
                                 context,
-                              ).colorScheme.surfaceVariant.withOpacity(0.5),
+                              ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(

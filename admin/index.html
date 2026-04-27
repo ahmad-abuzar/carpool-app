@@ -102,6 +102,47 @@
 
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="page active">
+          <section class="dashboard-hero card">
+            <div class="hero-copy">
+              <p class="hero-kicker">Control Center</p>
+              <h2>Platform at a glance</h2>
+              <p class="hero-subtitle">Track users, commissions, and locked profiles in real time.</p>
+              <div class="hero-quick-actions">
+                <button class="chip active" onclick="navigateTo('users')">
+                  <span class="material-icons-round">people</span>
+                  Review Users
+                </button>
+                <button class="chip" onclick="navigateTo('commissions')">
+                  <span class="material-icons-round">payments</span>
+                  Check Commissions
+                </button>
+                <button class="chip" onclick="navigateTo('locked')">
+                  <span class="material-icons-round">lock</span>
+                  Resolve Locks
+                </button>
+              </div>
+            </div>
+            <div class="hero-panel">
+              <div class="hero-clock">
+                <span class="material-icons-round">schedule</span>
+                <div>
+                  <p id="dashboard-time">--:--:--</p>
+                  <small id="dashboard-date">Loading date...</small>
+                </div>
+              </div>
+              <div class="hero-controls">
+                <label class="switch-control" for="auto-refresh-toggle">
+                  <input id="auto-refresh-toggle" type="checkbox" checked onchange="setDashboardAutoRefresh(this.checked)">
+                  <span>Auto refresh (30s)</span>
+                </label>
+                <button class="btn-primary" onclick="refreshDashboardNow()">
+                  <span class="material-icons-round">autorenew</span>
+                  Refresh Now
+                </button>
+              </div>
+            </div>
+          </section>
+
           <div class="stats-grid">
             <div class="stat-card stat-users">
               <div class="stat-icon"><span class="material-icons-round">people</span></div>
@@ -132,6 +173,8 @@
               </div>
             </div>
           </div>
+
+          <div id="dashboard-insights" class="insights-grid"></div>
 
           <!-- Commission Overview -->
           <div class="card commission-overview">

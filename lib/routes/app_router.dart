@@ -23,6 +23,7 @@ import '../ui/screens/driver/post_ride_screen.dart';
 import '../ui/screens/driver/manage_rides_screen.dart';
 import '../ui/screens/messages/messages_screen.dart';
 import '../ui/screens/messages/chat_screen.dart';
+import '../ui/screens/messages/assistant_chat_screen.dart';
 import '../ui/screens/profile/profile_screen.dart';
 import '../ui/screens/profile/verification_screen.dart';
 import '../ui/screens/verification/id_scan_screen.dart';
@@ -85,8 +86,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // Logged in + Profile complete -> can't go to welcome, onboarding, or profile setup
-      if (isGoingToAuth || isGoingToSplash || isGoingToProfileSetup)
+      if (isGoingToAuth || isGoingToSplash || isGoingToProfileSetup) {
         return '/home';
+      }
 
       return null;
     },
@@ -260,6 +262,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/manage-rides',
         name: 'manage-rides',
         builder: (context, state) => const ManageRidesScreen(),
+      ),
+
+      // AI Assistant (outside shell so main floating JINN button is hidden)
+      GoRoute(
+        path: '/assistant-chat',
+        name: 'assistant-chat',
+        builder: (context, state) => const AssistantChatScreen(),
       ),
 
       // Messaging

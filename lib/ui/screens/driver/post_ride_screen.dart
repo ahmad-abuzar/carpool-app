@@ -249,7 +249,7 @@ class _PostRideScreenState extends ConsumerState<PostRideScreen> {
                   )
                 else
                   DropdownButtonFormField<Vehicle>(
-                    value: _selectedVehicle,
+                    initialValue: _selectedVehicle,
                     decoration: const InputDecoration(
                       labelText: 'Select Vehicle',
                       prefixIcon: Icon(Icons.directions_car),

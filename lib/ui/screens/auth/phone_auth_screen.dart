@@ -130,10 +130,10 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Country code dropdown
-                  Container(
+                  SizedBox(
                     width: 100,
                     child: DropdownButtonFormField<String>(
-                      value: _countryCode,
+                      initialValue: _countryCode,
                       decoration: const InputDecoration(labelText: 'Code'),
                       items: const [
                         DropdownMenuItem(value: '+92', child: Text('+92')),

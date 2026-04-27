@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/booking.dart';
-import '../models/ride.dart';
-import '../models/user.dart';
 import 'firestore_service.dart';
 import 'ride_service.dart';
 

@@ -443,7 +443,7 @@ class _PreferencesSetupScreenState extends State<PreferencesSetupScreen> {
             onChanged: (value) {
               setState(() => _smartMatchingEnabled = value);
             },
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
           ),
         ],
       ),

@@ -301,7 +301,7 @@ class CompatibilityDetailsSheet extends StatelessWidget {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

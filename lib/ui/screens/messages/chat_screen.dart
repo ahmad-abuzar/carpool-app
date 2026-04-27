@@ -268,7 +268,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       ? Theme.of(context).colorScheme.primary
                                       : Theme.of(
                                           context,
-                                        ).colorScheme.surfaceVariant,
+                                        ).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.only(
                                     topLeft: const Radius.circular(
                                       Spacing.radiusLg,

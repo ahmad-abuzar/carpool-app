@@ -14,7 +14,16 @@ class MessagesScreen extends ConsumerWidget {
     final conversationsAsync = ref.watch(conversationsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(
+        title: const Text('Messages'),
+        actions: [
+          IconButton(
+            tooltip: 'AI Assistant',
+            onPressed: () => context.push('/assistant-chat'),
+            icon: const Icon(Icons.smart_toy_outlined),
+          ),
+        ],
+      ),
       body: conversationsAsync.when(
         data: (conversations) => conversations.isEmpty
             ? Center(

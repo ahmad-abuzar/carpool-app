@@ -68,7 +68,7 @@ class StorageService {
     Function(double)? onProgress,
   }) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = 'users/$userId/documents/id_$documentType\_$timestamp.jpg';
+    final path = 'users/$userId/documents/id_${documentType}_$timestamp.jpg';
     return await uploadFile(
       file: imageFile,
       path: path,
@@ -84,7 +84,7 @@ class StorageService {
     Function(double)? onProgress,
   }) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = 'users/$userId/vehicles/$vehicleId\_$timestamp.jpg';
+    final path = 'users/$userId/vehicles/${vehicleId}_$timestamp.jpg';
     return await uploadFile(
       file: imageFile,
       path: path,
@@ -116,7 +116,7 @@ class StorageService {
   }) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final path =
-        'users/$userId/verification/fingerprint_$fingerType\_$timestamp.jpg';
+        'users/$userId/verification/fingerprint_${fingerType}_$timestamp.jpg';
     return await uploadFile(
       file: imageFile,
       path: path,

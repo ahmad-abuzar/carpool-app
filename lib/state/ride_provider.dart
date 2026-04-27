@@ -86,8 +86,9 @@ class RidesNotifier extends StateNotifier<List<Ride>> {
   List<Ride> searchLocal(RideSearchFilters filters) {
     return state.where((ride) {
       if (filters.femaleOnly && !ride.femaleOnly) return false;
-      if (filters.maxPrice != null && ride.pricePerSeat > filters.maxPrice!)
+      if (filters.maxPrice != null && ride.pricePerSeat > filters.maxPrice!) {
         return false;
+      }
       if (filters.date != null) {
         final rideDate = DateTime(
           ride.departureTime.year,

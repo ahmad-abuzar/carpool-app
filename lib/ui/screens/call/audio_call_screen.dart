@@ -6,7 +6,6 @@ import '../../../services/agora_service.dart';
 import '../../../services/call_service.dart';
 import '../../theme/color_palette.dart';
 import '../../theme/spacing.dart';
-import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 
 /// Audio Call Screen
 /// Displays UI for ongoing audio call with controls

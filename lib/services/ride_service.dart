@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/ride.dart';
 import '../models/user.dart';
-import '../models/vehicle.dart';
 import 'firestore_service.dart';
 
 /// Ride Management Service

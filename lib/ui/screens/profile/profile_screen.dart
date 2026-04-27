@@ -1028,7 +1028,7 @@ class _DriverModeToggleState extends ConsumerState<_DriverModeToggle> {
             Switch(
               value: _isDriverMode,
               onChanged: _toggleDriverMode,
-              activeColor: AppColors.success,
+              activeThumbColor: AppColors.success,
             ),
         ],
       ),

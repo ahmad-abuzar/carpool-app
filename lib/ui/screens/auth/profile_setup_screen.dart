@@ -304,7 +304,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   const SizedBox(height: Spacing.lg),
 
                   DropdownButtonFormField<Gender>(
-                    value: _selectedGender,
+                    initialValue: _selectedGender,
                     decoration: const InputDecoration(
                       labelText: 'Gender',
                       prefixIcon: Icon(Icons.people_outline),

@@ -2,9 +2,7 @@ import '../models/user.dart';
 import '../models/vehicle.dart';
 import '../models/ride.dart';
 import '../models/message.dart';
-import '../models/rating.dart';
 import '../models/payment_method.dart';
-import '../models/booking.dart';
 import '../models/notification.dart';
 
 /// Mock data service for development - Pakistani version
