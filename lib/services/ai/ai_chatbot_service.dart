@@ -34,7 +34,8 @@ class AIChatbotService {
     final intentReply = _intentReply(userMessage);
 
     if (_model == null) {
-      return intentReply ?? _fallbackReply(userMessage, conversationHistory.length);
+      return intentReply ??
+          _fallbackReply(userMessage, conversationHistory.length);
     }
 
     final recentHistory = conversationHistory.length > 12
@@ -76,11 +77,13 @@ $userMessage
       final response = await _model.generateContent([Content.text(prompt)]);
       final text = response.text?.trim() ?? '';
       if (text.isEmpty) {
-        return intentReply ?? _fallbackReply(userMessage, conversationHistory.length);
+        return intentReply ??
+            _fallbackReply(userMessage, conversationHistory.length);
       }
       return text;
     } catch (_) {
-      return intentReply ?? _fallbackReply(userMessage, conversationHistory.length);
+      return intentReply ??
+          _fallbackReply(userMessage, conversationHistory.length);
     }
   }
 
@@ -90,7 +93,14 @@ $userMessage
 
     bool hasAny(List<String> tokens) => tokens.any(lower.contains);
 
-    if (hasAny(['book', 'booking', 'ride book', 'ride kr', 'ride kar', 'sawari'])) {
+    if (hasAny([
+      'book',
+      'booking',
+      'ride book',
+      'ride kr',
+      'ride kar',
+      'sawari',
+    ])) {
       return isRomanUrdu
           ? 'Ride book karne ke liye Home par jao, kisi ride par tap karo, seats aur fare check karo, phir Confirm Booking karo. Agar chaho to main screen-by-screen guide bhi de deta hoon.'
           : 'To book a ride, open Home, select a ride, review seats and fare, then tap Confirm Booking. I can guide you screen by screen if needed.';

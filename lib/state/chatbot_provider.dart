@@ -163,7 +163,7 @@ class ChatbotNotifier extends StateNotifier<ChatbotState> {
     return input
         .toLowerCase()
         .replaceAll(RegExp(r'\s+'), ' ')
-      .replaceAll(RegExp(r'[^\p{L}\p{N} ]', unicode: true), '')
+        .replaceAll(RegExp(r'[^\p{L}\p{N} ]', unicode: true), '')
         .trim();
   }
 
