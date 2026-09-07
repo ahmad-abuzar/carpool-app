@@ -5,7 +5,6 @@ import 'package:uuid/uuid.dart';
 import '../../../models/ride.dart';
 import '../../../models/vehicle.dart';
 import '../../../services/mock_data_service.dart';
-import '../../../services/location_search_service.dart';
 import '../../../services/commission_service.dart';
 import '../../../state/providers.dart';
 import '../../theme/color_palette.dart';

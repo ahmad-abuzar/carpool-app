@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
 import 'firestore_service.dart';
 // import 'storage_service.dart';  // Deprecated: Using Cloudinary instead
-import 'dart:io';
 
 /// User Management Service
 /// Handles all user-related operations
@@ -204,8 +203,6 @@ class UserService {
 
   /// Search users by name or email
   Future<List<User>> searchUsers(String query) async {
-    final lowerQuery = query.toLowerCase();
-
     // Note: This is a basic search. For production, consider using Algolia or similar
     final snapshot = await _firestore
         .collection(_collection)

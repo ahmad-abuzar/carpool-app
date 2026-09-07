@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 /// Firebase Authentication Service
@@ -139,6 +140,17 @@ class FirebaseAuthService {
     } on auth.FirebaseAuthException catch (e) {
       print('❌ Google Sign-In Firebase error: ${e.code}');
       throw _handleAuthException(e);
+    } on PlatformException catch (e) {
+      print('❌ Google Sign-In platform error: ${e.code} ${e.message}');
+      if (e.code == 'sign_in_failed' &&
+          e.message?.contains('ApiException: 10') == true) {
+        throw StateError(
+          'Google Sign-In is not configured for this Android build. '
+          'Add this app package and its SHA-1 certificate in Firebase, '
+          'download google-services.json again, then rebuild the app.',
+        );
+      }
+      rethrow;
     } catch (e) {
       print('❌ Google Sign-In error: $e');
       rethrow;

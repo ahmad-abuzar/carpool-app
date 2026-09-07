@@ -59,7 +59,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
       builder: (context) => AlertDialog(
         icon: const Icon(
           Icons.check_circle,
-          color: ColorPalette.success,
+          color: AppColors.success,
           size: 64,
         ),
         title: Text(
@@ -88,11 +88,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.error_outline,
-          color: ColorPalette.error,
-          size: 64,
-        ),
+        icon: const Icon(Icons.error_outline, color: AppColors.error, size: 64),
         title: Text('Setup Failed', style: AppTypography.headline(context)),
         content: Text(
           'Could not enable biometric authentication. Please try again.',
@@ -130,7 +126,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  gradient: ColorPalette.primaryGradient,
+                  gradient: AppColors.primaryGradient,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -212,7 +208,7 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
                   'Biometric authentication not available on this device',
                   style: AppTypography.bodySmall(
                     context,
-                    color: ColorPalette.error,
+                    color: AppColors.error,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -243,10 +239,10 @@ class _BiometricSetupScreenState extends ConsumerState<BiometricSetupScreen> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: ColorPalette.primary.withOpacity(0.1),
+            color: AppColors.primaryDark.withOpacity(0.1),
             borderRadius: BorderRadius.circular(Spacing.sm),
           ),
-          child: Icon(icon, color: ColorPalette.primary, size: 24),
+          child: Icon(icon, color: AppColors.primaryDark, size: 24),
         ),
         const SizedBox(width: Spacing.md),
         Expanded(

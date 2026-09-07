@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -63,6 +60,15 @@ class DefaultFirebaseOptions {
     messagingSenderId: '821231678050',
     projectId: 'carpool-app-5abb3',
     iosBundleId: 'com.carpool.carpoolApp',
+    storageBucket: 'carpool-app-5abb3.firebasestorage.app',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyA_CfJf6E2KZ13cbs2VJCxpaBwy2fTG4lc',
+    appId: '1:821231678050:web:a1b2c3d4e5f6g7h8i9j0k1',
+    messagingSenderId: '821231678050',
+    projectId: 'carpool-app-5abb3',
+    authDomain: 'carpool-app-5abb3.firebaseapp.com',
     storageBucket: 'carpool-app-5abb3.firebasestorage.app',
   );
 }

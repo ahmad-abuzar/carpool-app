@@ -71,10 +71,9 @@ class MessagingService {
           .doc(conversationId)
           .collection('metadata')
           .doc(message.receiverId)
-          .set(
-            {'unreadCount': FieldValue.increment(1)},
-            SetOptions(merge: true),
-          );
+          .set({
+            'unreadCount': FieldValue.increment(1),
+          }, SetOptions(merge: true));
     } catch (e) {
       // Some Firestore rule sets don't allow nested metadata subcollection.
       print('⚠️ MessagingService: Metadata unread update skipped: $e');
@@ -89,8 +88,6 @@ class MessagingService {
 
   /// Get messages between two users
   Future<List<Message>> getMessages(String userId1, String userId2) async {
-    final conversationId = _getConversationId(userId1, userId2);
-
     final docs = await _firestoreService.advancedQuery(
       collection: _messagesCollection,
       conditions: [

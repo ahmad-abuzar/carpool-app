@@ -1,13 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/booking.dart';
 import 'firestore_service.dart';
-import 'ride_service.dart';
 
 /// Booking Management Service
 /// Handles all booking-related operations
 class BookingService {
   final FirestoreService _firestoreService = FirestoreService();
-  final RideService _rideService = RideService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static const String _collection = 'bookings';

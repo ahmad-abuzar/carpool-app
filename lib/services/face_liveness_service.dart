@@ -16,7 +16,6 @@ class FaceLivenessService {
   );
 
   // Liveness tracking
-  bool _hasDetectedFace = false;
   bool _hasBlinkDetected = false;
   bool _hasHeadTurnedLeft = false;
   bool _hasHeadTurnedRight = false;
@@ -206,7 +205,6 @@ class FaceLivenessService {
 
   /// Reset liveness state
   void reset() {
-    _hasDetectedFace = false;
     _hasBlinkDetected = false;
     _hasHeadTurnedLeft = false;
     _hasHeadTurnedRight = false;

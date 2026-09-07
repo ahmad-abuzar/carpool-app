@@ -8,7 +8,6 @@ import '../../../services/image_upload_service.dart';
 import '../../../state/auth_provider.dart';
 import '../../../state/providers.dart';
 import '../../theme/spacing.dart';
-import '../../theme/typography.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -28,7 +27,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   bool _preferFemaleOnly = false;
   bool _isSocialLogin = false;
   File? _selectedImage;
-  String? _uploadedImageUrl;
 
   @override
   void initState() {
@@ -103,26 +101,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 );
                 return;
               }
-
-              // Create a fresh user object - NO MOCK DATA INHERITANCE
-              final newUser = User(
-                id: firebaseUser.uid,
-                name: _nameController.text.trim(),
-                email: _emailController.text.trim(),
-                phone: firebaseUser.phoneNumber ?? '',
-                gender: _selectedGender,
-                homeAddress: _homeAddressController.text.trim(),
-                workAddress: _workAddressController.text.trim(),
-                preferFemaleOnlyRides: _preferFemaleOnly,
-                phoneVerified: firebaseUser.phoneNumber != null,
-                emailVerified: firebaseUser.emailVerified,
-                role: UserRole.both, // Default to both for flexibility
-                rating: 5.0, // Start new users with 5 stars
-                totalRides: 0,
-                totalRidesAsDriver: 0,
-                verificationStatus: VerificationStatus.none,
-                verificationLevel: VerificationLevel.none,
-              );
 
               try {
                 // Show loading

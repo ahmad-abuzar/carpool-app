@@ -190,15 +190,15 @@ class _PreferencesSetupScreenState extends State<PreferencesSetupScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.secondary.withOpacity(0.1),
+            AppColors.primaryDark.withOpacity(0.1),
+            AppColors.secondaryDark.withOpacity(0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Icon(Icons.psychology, size: 48, color: AppColors.primary),
+          Icon(Icons.psychology, size: 48, color: AppColors.primaryDark),
           const SizedBox(height: 12),
           Text(
             'AI Smart Matching',
@@ -379,7 +379,7 @@ class _PreferencesSetupScreenState extends State<PreferencesSetupScreen> {
               ),
               selected: isSelected,
               onSelected: (_) => onChanged(value),
-              selectedColor: AppColors.primary.withOpacity(0.2),
+              selectedColor: AppColors.primaryDark.withOpacity(0.2),
               backgroundColor: Colors.grey[100],
             );
           }).toList(),
@@ -421,7 +421,7 @@ class _PreferencesSetupScreenState extends State<PreferencesSetupScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.auto_awesome, color: AppColors.primary),
+          Icon(Icons.auto_awesome, color: AppColors.primaryDark),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -443,7 +443,7 @@ class _PreferencesSetupScreenState extends State<PreferencesSetupScreen> {
             onChanged: (value) {
               setState(() => _smartMatchingEnabled = value);
             },
-            activeThumbColor: AppColors.primary,
+            activeThumbColor: AppColors.primaryDark,
           ),
         ],
       ),
@@ -454,7 +454,7 @@ class _PreferencesSetupScreenState extends State<PreferencesSetupScreen> {
     return ElevatedButton(
       onPressed: _isLoading ? null : _savePreferences,
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.primaryDark,
         foregroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

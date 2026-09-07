@@ -29,7 +29,6 @@ class RouteMapWidget extends StatefulWidget {
 class _RouteMapWidgetState extends State<RouteMapWidget> {
   List<LatLng> _routePoints = [];
   bool _isLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -74,7 +73,6 @@ class _RouteMapWidgetState extends State<RouteMapWidget> {
 
   void _setError(String message) {
     setState(() {
-      _error = message;
       _isLoading = false;
       // Fallback to straight line
       _routePoints = [

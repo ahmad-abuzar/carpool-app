@@ -549,7 +549,6 @@ class _MenuItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final Widget? trailing;
   final Color? textColor;
 
   const _MenuItem({
@@ -557,7 +556,6 @@ class _MenuItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.trailing,
     this.textColor,
   });
 
@@ -567,49 +565,8 @@ class _MenuItem extends StatelessWidget {
       leading: Icon(icon, color: textColor),
       title: Text(title, style: TextStyle(color: textColor)),
       subtitle: Text(subtitle),
-      trailing: trailing ?? const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
-    );
-  }
-}
-
-class _VerificationBadge extends StatelessWidget {
-  final bool verified;
-
-  const _VerificationBadge({required this.verified});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Spacing.md,
-        vertical: Spacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: verified
-            ? AppColors.success.withOpacity(0.1)
-            : AppColors.warning.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(Spacing.radiusFull),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            verified ? Icons.check_circle : Icons.warning,
-            size: 16,
-            color: verified ? AppColors.success : AppColors.warning,
-          ),
-          const SizedBox(width: Spacing.xs),
-          Text(
-            verified ? 'Verified' : 'Pending',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: verified ? AppColors.success : AppColors.warning,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

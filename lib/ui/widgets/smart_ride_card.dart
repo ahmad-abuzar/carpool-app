@@ -27,7 +27,6 @@ class _SmartRideCardState extends State<SmartRideCard> {
   final _matchingService = MatchingApiService();
   CompatibilityResult? _compatibility;
   bool _isLoadingCompatibility = false;
-  String? _error;
 
   @override
   void initState() {
@@ -42,19 +41,18 @@ class _SmartRideCardState extends State<SmartRideCard> {
   }
 
   Future<void> _loadCompatibility() async {
-    if (widget.ride.driverId == widget.currentUserId) {
+    if (widget.ride.driver.id == widget.currentUserId) {
       return; // Don't show compatibility for own rides
     }
 
     setState(() {
       _isLoadingCompatibility = true;
-      _error = null;
     });
 
     try {
       final result = await _matchingService.calculateMatch(
         userId: widget.currentUserId,
-        candidateId: widget.ride.driverId,
+        candidateId: widget.ride.driver.id,
         useMl: false,
       );
 
@@ -67,7 +65,6 @@ class _SmartRideCardState extends State<SmartRideCard> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
           _isLoadingCompatibility = false;
         });
       }
@@ -94,12 +91,12 @@ class _SmartRideCardState extends State<SmartRideCard> {
                   // Driver avatar
                   CircleAvatar(
                     radius: 24,
-                    backgroundImage: widget.ride.driverPhotoUrl != null
-                        ? NetworkImage(widget.ride.driverPhotoUrl!)
+                    backgroundImage: widget.ride.driver.profileImageUrl != null
+                        ? NetworkImage(widget.ride.driver.profileImageUrl!)
                         : null,
-                    child: widget.ride.driverPhotoUrl == null
+                    child: widget.ride.driver.profileImageUrl == null
                         ? Text(
-                            widget.ride.driverName[0].toUpperCase(),
+                            widget.ride.driver.name[0].toUpperCase(),
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -115,7 +112,7 @@ class _SmartRideCardState extends State<SmartRideCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.ride.driverName,
+                          widget.ride.driver.name,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -130,7 +127,7 @@ class _SmartRideCardState extends State<SmartRideCard> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              widget.ride.driverRating.toStringAsFixed(1),
+                              widget.ride.driver.rating.toStringAsFixed(1),
                               style: const TextStyle(fontSize: 13),
                             ),
                           ],
@@ -185,7 +182,7 @@ class _SmartRideCardState extends State<SmartRideCard> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                      color: AppColors.primaryDark,
                     ),
                   ),
                   const Text(' /seat', style: TextStyle(fontSize: 12)),
@@ -324,7 +321,7 @@ class _SmartRideCardState extends State<SmartRideCard> {
                   '+${_compatibility!.reasons.length - 2} more reasons',
                   style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.primary,
+                    color: AppColors.primaryDark,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

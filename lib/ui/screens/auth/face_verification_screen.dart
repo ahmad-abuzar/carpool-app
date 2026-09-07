@@ -101,7 +101,7 @@ class _FaceVerificationScreenState
       builder: (context) => AlertDialog(
         icon: const Icon(
           Icons.verified_user,
-          color: ColorPalette.success,
+          color: AppColors.success,
           size: 64,
         ),
         title: Text(
@@ -123,7 +123,7 @@ class _FaceVerificationScreenState
                 vertical: Spacing.sm,
               ),
               decoration: BoxDecoration(
-                color: ColorPalette.success.withOpacity(0.1),
+                color: AppColors.success.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(Spacing.sm),
               ),
               child: Row(
@@ -131,7 +131,7 @@ class _FaceVerificationScreenState
                 children: [
                   const Icon(
                     Icons.check_circle,
-                    color: ColorPalette.success,
+                    color: AppColors.success,
                     size: 20,
                   ),
                   const SizedBox(width: Spacing.sm),
@@ -139,7 +139,7 @@ class _FaceVerificationScreenState
                     'Verified User Badge Earned',
                     style: AppTypography.bodySmall(
                       context,
-                      color: ColorPalette.success,
+                      color: AppColors.success,
                       weight: FontWeight.w600,
                     ),
                   ),
@@ -190,7 +190,7 @@ class _FaceVerificationScreenState
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: _step == 0 ? Colors.white : ColorPalette.primary,
+                      color: _step == 0 ? Colors.white : AppColors.primaryDark,
                       width: 4,
                     ),
                   ),
@@ -246,7 +246,7 @@ class _FaceVerificationScreenState
                         height: 4,
                         decoration: BoxDecoration(
                           color: index <= _step
-                              ? ColorPalette.primary
+                              ? AppColors.primaryDark
                               : Colors.white.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(2),
                         ),
@@ -270,7 +270,7 @@ class _FaceVerificationScreenState
                   if (_isProcessing)
                     const CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        ColorPalette.primary,
+                        AppColors.primaryDark,
                       ),
                     ),
 
@@ -296,7 +296,7 @@ class _FaceVerificationScreenState
                 child: const Center(
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      ColorPalette.primary,
+                      AppColors.primaryDark,
                     ),
                   ),
                 ),

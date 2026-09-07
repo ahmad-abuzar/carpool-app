@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "821231678050-0ffjh05gthvroto8t7efr3hvqdhcsoq7.apps.googleusercontent.com",
+          "client_id": "821231678050-f7h1lamp84d6umb0usi2jbudak3rfk2d.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.carpool.carpool_app",
-            "certificate_hash": "0af03088a4f8b4f3bb6ecc2faab43620f5c6484a"
+            "certificate_hash": "3200d7ab708f0b14ec8b16d0621579ab0a52edca"
           }
         },
         {

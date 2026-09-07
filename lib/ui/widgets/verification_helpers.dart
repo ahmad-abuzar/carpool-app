@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import '../models/user.dart';
+import '../../models/user.dart';
 
 // Helper function to determine verification button label
 String getVerificationButtonLabel(VerificationStatus status, User user) {

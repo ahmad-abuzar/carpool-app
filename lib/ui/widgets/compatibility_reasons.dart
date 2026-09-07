@@ -281,7 +281,7 @@ class CompatibilityDetailsSheet extends StatelessWidget {
                       minHeight: 6,
                       backgroundColor: Colors.grey[200],
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
+                        AppColors.primaryDark,
                       ),
                     ),
                   ),
